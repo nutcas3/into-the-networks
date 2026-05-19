@@ -1,0 +1,14 @@
+{
+  "freeswitch": {
+    "host": "localhost",
+    "port": "8021",
+    "password": "ClueCon"
+  },
+  "postgresql": {
+    "host": "localhost",
+    "port": "5432",
+    "user": "freeswitch",
+    "password": "freeswitch_pass",
+    "dbname": "freeswitch_cdr"
+  }
+}
