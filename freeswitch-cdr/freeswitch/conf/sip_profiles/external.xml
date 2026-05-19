@@ -1,0 +1,51 @@
+<include>
+  <profile name="external">
+    <gateways>
+    </gateways>
+    <domains>
+      <domain name="$${domain}"/>
+      <domain name="all"/>
+    </domains>
+    <settings>
+      <param name="user-agent-string" value="FreeSWITCH"/>
+      <param name="debug" value="3"/>
+      <param name="sip-trace" value="no"/>
+      <param name="sip-capture" value="no"/>
+      <param name="rfc2833-dtmf-digit-level" value="8"/>
+      <param name="dtmf-type" value="rfc2833"/>
+      <param name="dtmf-duration" value="2000"/>
+      <param name="dtmf-hold-time" value="40"/>
+      <param name="rtp-timer-name" value="soft"/>
+      <param name="rtp-ip" value="auto"/>
+      <param name="sip-ip" value="auto"/>
+      <param name="ext-rtp-ip" value="auto-nat"/>
+      <param name="ext-sip-ip" value="auto-nat"/>
+      <param name="apply-nat-acl" value="nat.auto"/>
+      <param name="local-network-acl" value="localnet.auto"/>
+      <param name="codec-prefs" value="PCMU,PCMA,G729"/>
+      <param name="dialplan" value="XML"/>
+      <param name="context" value="public"/>
+      <param name="sip-port" value="5080"/>
+      <param name="tls" value="false"/>
+      <param name="tls-bind-params" value="transport=tls"/>
+      <param name="tls-sip-port" value="5061"/>
+      <param name="tls-version" value="tlsv1.2"/>
+      <param name="tls-bind-params" value="transport=tls"/>
+      <param name="hold-music" value="$${hold_music}"/>
+      <param name="apply-inbound-acl" value="domains"/>
+      <param name="apply-register-acl" value="domains"/>
+      <param name="register-scheme" value="digest"/>
+      <param name="register-domain" value=""/>
+      <param name="auth-calls" value="true"/>
+      <param name="auth-all-packets" value="false"/>
+      <param name="nonce-ttl" value="60"/>
+      <param name="rtp-timeout-sec" value="300"/>
+      <param name="rtp-hold-timeout-sec" value="1800"/>
+      <param name="session-timeout" value="1800"/>
+      <param name="max-proceeding" value="10"/>
+      <param name="odbc-dsn" value="$${dsn}"/>
+      <param name="unroll-queues" value="true"/>
+      <param name="NAT-detect-external-ip" value="true"/>
+    </settings>
+  </profile>
+</include>
