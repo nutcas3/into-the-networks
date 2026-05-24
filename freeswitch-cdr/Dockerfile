@@ -12,13 +12,15 @@ RUN apt update && apt install -y \
     libtool libtool-bin autoconf automake bash \
     software-properties-common ca-certificates gnupg
 
-# Core dependencies
+# Core dependencies including System APR
 RUN apt install -y \
+    libapr1-dev libaprutil1-dev \
     libssl-dev libsqlite3-dev libcurl4-openssl-dev libpcre2-dev \
     libspeex-dev libspeexdsp-dev libsofia-sip-ua-dev libldns-dev \
     uuid-dev libpq-dev libopus-dev libsndfile1-dev libavformat-dev \
     libavcodec-dev libavutil-dev libswscale-dev libjpeg-dev libtiff-dev \
-    libedit-dev liblua5.3-dev yasm nasm
+    libedit-dev liblua5.3-dev yasm nasm \
+    && rm -rf /var/lib/apt/lists/*
 
 # Build libks and signalwire-c
 RUN git clone https://github.com/signalwire/libks.git /usr/src/libks && \
@@ -34,11 +36,12 @@ RUN git clone https://github.com/freeswitch/spandsp.git /usr/src/spandsp && \
 RUN git clone https://github.com/freeswitch/sofia-sip.git /usr/src/sofia-sip && \
     cd /usr/src/sofia-sip && ./bootstrap.sh && ./configure && make -j$(nproc) && make install && ldconfig
 
-# Clone and build FreeSWITCH
+# Clone and build FreeSWITCH with System APR
 RUN git clone https://github.com/signalwire/freeswitch.git /usr/src/freeswitch && \
     cd /usr/src/freeswitch && chmod +x bootstrap.sh && bash ./bootstrap.sh -j && \
-    ./configure && make -j$(nproc) && make install && \
+    ./configure --disable-ipv6 --with-apr=/usr --with-aprutil=/usr && \
+    make -j$(nproc) && make install && \
     make sounds-install && make moh-install
 
 WORKDIR /usr/src/freeswitch
-CMD ["freeswitch"]
+CMD ["freeswitch", "-nonat"]
