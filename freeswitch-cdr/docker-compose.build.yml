@@ -1,8 +1,12 @@
 services:
   freeswitch:
-    image: dhananjayve/freeswitch-arm64:v1.0.0
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: freeswitch-build
-    network_mode: host
+    ports:
+      - "8021:8021"
+      - "5060:5060/udp"
     volumes:
       - ./freeswitch/conf:/usr/local/freeswitch/etc/freeswitch
       - ./freeswitch/log:/usr/local/freeswitch/log
