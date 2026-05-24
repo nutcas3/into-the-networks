@@ -41,4 +41,4 @@ RUN git clone https://github.com/signalwire/freeswitch.git /usr/src/freeswitch &
     make sounds-install && make moh-install
 
 WORKDIR /usr/src/freeswitch
-CMD ["freeswitch", "-nonfatal", "-nc"]
+CMD ["freeswitch"]
