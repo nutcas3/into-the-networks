@@ -1,26 +1,20 @@
 services:
   freeswitch:
-    image: freeswitch:1.10.8
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: freeswitch
-    ports:
-      - "5060:5060/udp"
-      - "5060:5060/tcp"
-      - "5080:5080/udp"
-      - "5080:5080/tcp"
-      - "8021:8021/tcp"
-      - "16384-32768:16384-32768/udp"
+    network_mode: host
     volumes:
-      - ./freeswitch/conf:/etc/freeswitch
-      - ./freeswitch/log:/var/log/freeswitch
-      - ./freeswitch/recordings:/var/lib/freeswitch/recordings
+      - ./freeswitch/conf:/usr/local/freeswitch/conf
+      - ./freeswitch/log:/usr/local/freeswitch/log
+      - ./freeswitch/recordings:/usr/local/freeswitch/recordings
     environment:
-      - FS_CONF_DIR=/etc/freeswitch
-    networks:
-      - voip-network
+      - FS_CONF_DIR=/usr/local/freeswitch/conf
     restart: unless-stopped
 
   postgres:
-    image: postgres:18-alpine
+    image: postgres:15-alpine
     container_name: postgres
     ports:
       - "5432:5432"
@@ -31,13 +25,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - voip-network
     restart: unless-stopped
-
-networks:
-  voip-network:
-    driver: bridge
 
 volumes:
   postgres-data:
