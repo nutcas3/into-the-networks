@@ -1,0 +1,27 @@
+services:
+  freeswitch:
+    image: dhananjayve/freeswitch-arm64:v1.0.0
+    container_name: freeswitch-build
+    network_mode: host
+    volumes:
+      - ./freeswitch/conf:/usr/local/freeswitch/etc/freeswitch
+      - ./freeswitch/log:/usr/local/freeswitch/log
+      - ./freeswitch/recordings:/usr/local/freeswitch/recordings
+    environment:
+      - FS_CONF_DIR=/usr/local/freeswitch/etc/freeswitch
+    restart: unless-stopped
+  postgres:
+    image: postgres:15-alpine
+    container_name: freeswitch-postgres-build
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=freeswitch_cdr
+      - POSTGRES_USER=freeswitch
+      - POSTGRES_PASSWORD=freeswitch_pass
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+volumes:
+  postgres-data:
