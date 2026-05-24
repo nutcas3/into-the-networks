@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/textproto"
 	"sync"
+	"time"
 )
 
 const (
@@ -65,16 +66,16 @@ func Dial(address string, opts Options) (*Conn, error) {
 		responseChan:   make(chan *Response, 100),
 	}
 
+	// Start receive loop before authentication
+	go eslConn.receiveLoop()
+	go eslConn.eventLoop()
+
 	// Authenticate
 	if err := eslConn.authenticate(opts.Password); err != nil {
 		conn.Close()
 		cancel()
 		return nil, err
 	}
-
-	// Start receive loop
-	go eslConn.receiveLoop()
-	go eslConn.eventLoop()
 
 	return eslConn, nil
 }
@@ -124,6 +125,8 @@ func (c *Conn) ReadResponse() (*Response, error) {
 		return response, nil
 	case <-c.ctx.Done():
 		return nil, c.ctx.Err()
+	case <-time.After(5 * time.Second):
+		return nil, fmt.Errorf("timeout waiting for response")
 	}
 }
 
