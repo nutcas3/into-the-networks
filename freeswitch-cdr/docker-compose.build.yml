@@ -1,18 +1,15 @@
 services:
   freeswitch:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: bytedesk/freeswitch:latest
     container_name: freeswitch-build
-    ports:
-      - "8021:8021"
-      - "5060:5060/udp"
+    network_mode: host
+    command: freeswitch -nf -nonat
     volumes:
       - ./freeswitch/conf:/usr/local/freeswitch/etc/freeswitch
       - ./freeswitch/log:/usr/local/freeswitch/log
       - ./freeswitch/recordings:/usr/local/freeswitch/recordings
     environment:
-      - FS_CONF_DIR=/usr/local/freeswitch/etc/freeswitch
+      - ESL_PASSWORD=ClueCon
     restart: unless-stopped
   postgres:
     image: postgres:15-alpine
