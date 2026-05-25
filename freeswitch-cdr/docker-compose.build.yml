@@ -1,27 +1,19 @@
 services:
   freeswitch:
-    image: bdfoster/freeswitch:1.10
-    container_name: freeswitch
-    ports:
-      - "5060:5060/udp"
-      - "5060:5060/tcp"
-      - "5080:5080/udp"
-      - "5080:5080/tcp"
-      - "8021:8021/tcp"
-      - "16384-16584:16384-16584/udp"
+    image: borisy/freeswitch:latest
+    container_name: freeswitch-build
+    network_mode: host
     volumes:
       - ./freeswitch/conf:/etc/freeswitch
       - ./freeswitch/log:/var/log/freeswitch
       - ./freeswitch/recordings:/var/lib/freeswitch/recordings
+      - freeswitch-db:/usr/local/freeswitch/db
     environment:
       - FS_CONF_DIR=/etc/freeswitch
-    networks:
-      - voip-network
     restart: unless-stopped
-
   postgres:
     image: postgres:15-alpine
-    container_name: freeswitch-postgres
+    container_name: freeswitch-postgres-build
     ports:
       - "5433:5432"
     environment:
@@ -32,10 +24,6 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
-
-networks:
-  voip-network:
-    driver: bridge
-
 volumes:
   postgres-data:
+  freeswitch-db:

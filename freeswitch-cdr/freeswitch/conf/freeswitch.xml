@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<document type="freeswitch/xml">
+  <section name="configuration">
+    <configuration name="switch.conf">
+      <settings>
+        <param name="core-db-name" value="/usr/local/freeswitch/db/core.db"/>
+        <param name="loglevel" value="info"/>
+        <param name="rtp-start-port" value="16384"/>
+        <param name="rtp-end-port" value="32768"/>
+      </settings>
+    </configuration>
+  </section>
+</document>
