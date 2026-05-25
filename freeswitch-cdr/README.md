@@ -229,6 +229,92 @@ The CDR table contains:
 - `hangup_cause`: FreeSWITCH hangup cause
 - `created_at`: Record creation timestamp
 
+## Testing the Setup
+
+### ⚠️ Important ARM64/Mac Notice
+
+**This setup has a known limitation on ARM64/Mac (Apple Silicon) systems:**
+- FreeSWITCH's Event Socket Library (ESL) fails to bind to port 8021 on ARM64 due to an IPv6 binding bug
+- This affects ALL FreeSWITCH Docker images on ARM64 platforms
+- The issue occurs in `mod_event_socket.c` when trying to resolve IPv6 addresses
+
+**Working Solutions:**
+1. **Run on x86_64/AMD64 hardware** (Intel/AMD machine, cloud instance, GitHub Actions)
+2. **Use XML-RPC API instead of ESL** (different protocol, no event socket needed)
+
+### Quick Test (x86_64/AMD64)
+
+```bash
+# 1. Start services
+docker-compose -f docker-compose.build.yml up -d
+
+# 2. Wait for FreeSWITCH to start (10-15 seconds)
+sleep 15
+
+# 3. Check if ESL port is binding
+docker exec freeswitch-build ss -tlnp | grep 8021
+
+# 4. Test ESL connection manually
+echo "auth ClueCon" | nc 127.0.0.1 8021
+
+# 5. Start the Go CDR service
+go run main.go
+
+# 6. Make test calls with SIP softphones
+#   - Extension 1000: password 1234, port 5080
+#   - Extension 1001: password 1234, port 5080
+
+# 7. Check CDRs in database
+docker exec -it freeswitch-postgres-build psql -U freeswitch -d freeswitch_cdr -c "SELECT * FROM cdr ORDER BY created_at DESC LIMIT 5;"
+```
+
+### ARM64/Mac Testing (Limited)
+
+```bash
+# 1. Start services (FreeSWITCH will run but ESL won't work)
+docker-compose -f docker-compose.build.yml up -d
+
+# 2. Verify FreeSWITCH is running (but ESL port won't bind)
+docker logs freeswitch-build | grep -i "freeswitch.*ready"
+
+# 3. Test SIP functionality (this works on ARM64)
+#   - Register SIP extensions 1000 and 1001
+#   - Make test calls between extensions
+
+# 4. Check FreeSWITCH status
+docker exec freeswitch-build fs_cli -x "status" -p ClueCon
+```
+
+### Expected Results
+
+**On x86_64/AMD64:**
+- ✅ ESL port 8021 binds successfully
+- ✅ Go CDR service connects and captures CDRs
+- ✅ Database stores call records
+- ✅ Full functionality working
+
+**On ARM64/Mac:**
+- ❌ ESL port 8021 does not bind
+- ❌ Go CDR service cannot connect
+- ✅ FreeSWITCH runs and SIP calls work
+- ✅ Can use XML-RPC API as alternative
+
+### Verification Commands
+
+```bash
+# Check container status
+docker-compose -f docker-compose.build.yml ps
+
+# View FreeSWITCH logs
+docker logs freeswitch-build --tail 20
+
+# Check ESL module status
+docker logs freeswitch-build 2>&1 | grep -i "event_socket"
+
+# Test database connection
+docker exec -it freeswitch-postgres-build psql -U freeswitch -d freeswitch_cdr -c "\dt"
+```
+
 ## Troubleshooting
 
 ### FreeSWITCH not starting
@@ -241,13 +327,14 @@ docker-compose logs freeswitch
 docker-compose logs postgres
 ```
 
-### ESL connection issues
+### ESL connection issues (x86_64 only)
 - Verify FreeSWITCH is running: `docker-compose ps`
+- Check ESL port binding: `docker exec freeswitch-build ss -tlnp | grep 8021`
 - Check ESL configuration in `freeswitch/conf/autoload_configs/event_socket.conf.xml`
-- Ensure port 8021 is accessible
+- On ARM64: This is expected to fail due to IPv6 binding issue
 
 ### SIP registration issues
-- Check if FreeSWITCH is listening on the correct port: `docker exec freeswitch netstat -tulpn`
+- Check if FreeSWITCH is listening on the correct port: `docker exec freeswitch-build netstat -tulpn | grep 5080`
 - Verify softphone configuration matches extension credentials
 - Try using the host IP instead of localhost if running in Docker
 
