@@ -44,11 +44,11 @@ lint:
 
 docker-up:
 	@echo "Starting Docker containers..."
-	@docker-compose up -d
+	@docker compose -f docker-compose.build.yml up -d
 
 docker-down:
 	@echo "Stopping Docker containers..."
-	@docker-compose down
+	@docker compose -f docker-compose.build.yml down
 
 docker-logs:
-	@docker-compose logs -f
+	@docker compose -f docker-compose.build.yml logs -f
