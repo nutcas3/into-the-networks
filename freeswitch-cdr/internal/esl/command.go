@@ -11,7 +11,7 @@ type AuthCommand struct {
 }
 
 func (a AuthCommand) BuildMessage() string {
-	return "auth " + a.Password + "\n\n"
+	return "auth " + a.Password
 }
 
 type EventCommand struct {
@@ -25,7 +25,7 @@ func (e EventCommand) BuildMessage() string {
 	for _, event := range e.Events {
 		msg.WriteString(" " + event)
 	}
-	return msg.String() + "\n\n"
+	return msg.String()
 }
 
 type APICommand struct {
@@ -35,9 +35,9 @@ type APICommand struct {
 
 func (a APICommand) BuildMessage() string {
 	if a.Args == "" {
-		return "api " + a.Command + "\n\n"
+		return "api " + a.Command
 	}
-	return "api " + a.Command + " " + a.Args + "\n\n"
+	return "api " + a.Command + " " + a.Args
 }
 
 type BGAPICommand struct {
@@ -47,27 +47,27 @@ type BGAPICommand struct {
 
 func (b BGAPICommand) BuildMessage() string {
 	if b.Args == "" {
-		return "bgapi " + b.Command + "\n\n"
+		return "bgapi " + b.Command
 	}
-	return "bgapi " + b.Command + " " + b.Args + "\n\n"
+	return "bgapi " + b.Command + " " + b.Args
 }
 
 type ExitCommand struct{}
 
 func (e ExitCommand) BuildMessage() string {
-	return "exit\n\n"
+	return "exit"
 }
 
 type NixEventCommand struct{}
 
 func (n NixEventCommand) BuildMessage() string {
-	return "nixevent\n\n"
+	return "nixevent"
 }
 
 type NoEventsCommand struct{}
 
 func (n NoEventsCommand) BuildMessage() string {
-	return "noevents\n\n"
+	return "noevents"
 }
 
 type LogCommand struct {
@@ -75,5 +75,5 @@ type LogCommand struct {
 }
 
 func (l LogCommand) BuildMessage() string {
-	return "log " + l.Level + "\n\n"
+	return "log " + l.Level
 }
