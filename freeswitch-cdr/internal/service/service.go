@@ -108,6 +108,10 @@ func parseFreeSWITCHTime(value string) (time.Time, bool) {
 	}
 
 	if epoch, err := strconv.ParseInt(value, 10, 64); err == nil {
+		// Detect microsecond epochs (values > 1e12 indicate microseconds)
+		if epoch > 1e12 || epoch < -1e12 {
+			return time.UnixMicro(epoch), true
+		}
 		return time.Unix(epoch, 0), true
 	}
 
