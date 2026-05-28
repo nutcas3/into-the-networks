@@ -7,6 +7,7 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 type Event struct {
@@ -21,11 +22,19 @@ func (e *Event) GetName() string {
 }
 
 func (e *Event) GetHeader(key string) string {
-	return e.Headers[key]
+	if value, ok := e.Headers[key]; ok {
+		return value
+	}
+
+	return e.Headers[normalizeHeaderKey(key)]
 }
 
 func (e *Event) HasHeader(key string) bool {
-	_, ok := e.Headers[key]
+	if _, ok := e.Headers[key]; ok {
+		return true
+	}
+
+	_, ok := e.Headers[normalizeHeaderKey(key)]
 	return ok
 }
 
@@ -44,7 +53,7 @@ func parseEvent(data []byte) (*Event, error) {
 
 	for k, v := range headers {
 		if len(v) > 0 {
-			event.Headers[k] = v[0]
+			event.Headers[normalizeHeaderKey(k)] = v[0]
 		}
 	}
 
@@ -71,5 +80,16 @@ func (e *Event) String() string {
 	if len(e.Body) > 0 {
 		builder.Write(e.Body)
 	}
+	return builder.String()
+}
+
+func normalizeHeaderKey(key string) string {
+	var builder strings.Builder
+	builder.Grow(len(key))
+
+	for _, r := range key {
+		builder.WriteRune(unicode.ToLower(r))
+	}
+
 	return builder.String()
 }
