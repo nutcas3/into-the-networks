@@ -5,7 +5,7 @@
   <section name="configuration" description="Various Configuration">
     <configuration name="switch.conf" description="Core Configuration">
       <settings>
-        <param name="core-db-name" value="/usr/db/core.db"/>
+        <param name="core-db-name" value="/var/lib/freeswitch/db/core.db"/>
         <param name="loglevel" value="info"/>
         <param name="rtp-start-port" value="16384"/>
         <param name="rtp-end-port" value="32768"/>

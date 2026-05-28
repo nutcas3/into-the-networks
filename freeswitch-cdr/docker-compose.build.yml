@@ -8,7 +8,7 @@ services:
       - ./freeswitch/conf:/etc/freeswitch:ro
       - ./freeswitch/log:/var/log/freeswitch
       - ./freeswitch/recordings:/var/lib/freeswitch/recordings
-      - ./freeswitch/db:/usr/db
+      - freeswitch-db:/var/lib/freeswitch/db
 
     environment:
       - FS_CONF_DIR=/etc/freeswitch
