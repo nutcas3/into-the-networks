@@ -1,7 +1,7 @@
 <include>
   <extension name="internal">
     <condition field="destination_number" expression="^(10[0-9][0-9])$">
-      <action application="bridge" data="user/${destination_number}@${domain_name}"/>
+      <action application="bridge" data="user/${destination_number}@$${domain}"/>
     </condition>
   </extension>
 </include>

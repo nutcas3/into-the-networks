@@ -1,20 +1,3 @@
-[0;32m[INFO][0m Disabling IPv6 configurations...
-[0;32m[INFO][0m Configuring event_socket for IPv4 only...
-[0;32m[INFO][0m IPv6 configurations disabled successfully
-[0;32m[INFO][0m Configuring Baidu MRCP Server...
-[0;32m[INFO][0m Starting Baidu MRCP Server on 127.0.0.1:5070...
-[1;33m[WARN][0m Baidu MRCP Server process not detected. Please check: /opt/mrcp/baidu/MRCPServer/mrcp-server/logs and /var/log/unimrcpserver.out
-[0;32m[INFO][0m Setting default password...
-[0;32m[INFO][0m FreeSWITCH configuration:
-[0;32m[INFO][0m   - Prefix: /usr/local/freeswitch
-[0;32m[INFO][0m   - Conf Dir: /usr/local/freeswitch/etc/freeswitch
-[0;32m[INFO][0m   - ESL Port: 8021
-[0;32m[INFO][0m   - SIP Ports: 5060, 5080
-[0;32m[INFO][0m   - WebRTC Port: 7443
-[0;32m[INFO][0m   - RTP Ports: 16384-32768
-[0;32m[INFO][0m   - IPv6: true
-[0;32m[INFO][0m   - Baidu MRCP: ENABLED (SIP 5070, MRCP 1544)
-[0;32m[INFO][0m Starting FreeSWITCH...
 <include>
   <!-- Preprocessor Variables
        These are introduced when configuration strings must be consistent across modules.
@@ -308,7 +291,7 @@
        If unspecified, the bind_server_ip value is used.
        Used by: sofia.conf.xml dingaling.conf.xml
   -->
-  <X-PRE-PROCESS cmd="stun-set" data="external_rtp_ip=stun:stun.freeswitch.org"/>
+  <X-PRE-PROCESS cmd="set" data="external_rtp_ip=$${local_ip_v4}"/>
 
   <!-- external_sip_ip
       Used as the public IP address for SDP.
@@ -321,7 +304,7 @@
        If unspecified, the bind_server_ip value is used.
        Used by: sofia.conf.xml dingaling.conf.xml
   -->
-  <X-PRE-PROCESS cmd="stun-set" data="external_sip_ip=stun:stun.freeswitch.org"/>
+  <X-PRE-PROCESS cmd="set" data="external_sip_ip=$${local_ip_v4}"/>
 
   <!-- unroll-loops
        Used to turn on sip loopback unrolling.
