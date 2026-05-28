@@ -7,7 +7,6 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 type Event struct {
@@ -84,12 +83,5 @@ func (e *Event) String() string {
 }
 
 func normalizeHeaderKey(key string) string {
-	var builder strings.Builder
-	builder.Grow(len(key))
-
-	for _, r := range key {
-		builder.WriteRune(unicode.ToLower(r))
-	}
-
-	return builder.String()
+	return strings.ToLower(key)
 }
