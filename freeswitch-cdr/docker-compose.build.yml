@@ -3,27 +3,38 @@ services:
     image: borisy/freeswitch:latest
     container_name: freeswitch-build
     network_mode: host
+
     volumes:
-      - ./freeswitch/conf:/etc/freeswitch
+      - ./freeswitch/conf:/etc/freeswitch:ro
       - ./freeswitch/log:/var/log/freeswitch
       - ./freeswitch/recordings:/var/lib/freeswitch/recordings
-      - freeswitch-db:/usr/local/freeswitch/db
+      - ./freeswitch/db:/usr/db
+
     environment:
       - FS_CONF_DIR=/etc/freeswitch
+
     restart: unless-stopped
+
+    depends_on:
+      - postgres
+
   postgres:
     image: postgres:15-alpine
     container_name: freeswitch-postgres-build
+
     ports:
       - "5433:5432"
+
     environment:
       - POSTGRES_DB=freeswitch_cdr
       - POSTGRES_USER=freeswitch
       - POSTGRES_PASSWORD=freeswitch_pass
+
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
     restart: unless-stopped
+
 volumes:
   postgres-data:
-  freeswitch-db:
