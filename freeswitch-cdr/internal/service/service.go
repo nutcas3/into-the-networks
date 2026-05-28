@@ -4,6 +4,7 @@ import (
 	"freeswitch-cdr/internal/cdr"
 	"freeswitch-cdr/internal/esl"
 	"log"
+	"strconv"
 	"time"
 )
 
@@ -28,12 +29,12 @@ func New(eslConn *esl.Conn, cdrRepo *cdr.Repository) *Service {
 }
 
 func (s *Service) Start() error {
-	if err := s.eslConn.EnableEvents("plain", []string{"CHANNEL_HANGUP_COMPLETE"}); err != nil {
-		log.Printf("Warning: Could not enable events: %v", err)
-	}
-
 	listenerID := s.eslConn.RegisterEventListener(esl.EventListenAll, s.eventHandler)
 	defer s.eslConn.RemoveEventListener(esl.EventListenAll, listenerID)
+
+	if err := s.eslConn.EnableEvents("plain", []string{"CHANNEL_HANGUP_COMPLETE"}); err != nil {
+		return err
+	}
 
 	log.Println("Service started. Listening for call events...")
 
@@ -44,6 +45,8 @@ func (s *Service) handleEvent(event *esl.Event) {
 	eventName := event.GetHeader("Event-Name")
 
 	if eventName == "CHANNEL_HANGUP_COMPLETE" {
+		log.Printf("Received CHANNEL_HANGUP_COMPLETE for UUID=%s", event.GetHeader("Unique-ID"))
+
 		callRecord := s.extractCDR(event)
 		if err := s.cdrRepo.Save(callRecord); err != nil {
 			log.Printf("Error saving CDR: %v", err)
@@ -56,8 +59,18 @@ func (s *Service) handleEvent(event *esl.Event) {
 
 func (s *Service) extractCDR(event *esl.Event) *cdr.CDR {
 	callUUID := event.GetHeader("Unique-ID")
-	caller := event.GetHeader("Caller-Username")
-	destination := event.GetHeader("Caller-Destination-Number")
+	caller := firstNonEmpty(
+		event.GetHeader("Caller-Username"),
+		event.GetHeader("Caller-Caller-ID-Number"),
+		event.GetHeader("variable_sip_from_user"),
+		"unknown",
+	)
+	destination := firstNonEmpty(
+		event.GetHeader("Caller-Destination-Number"),
+		event.GetHeader("variable_sip_req_user"),
+		event.GetHeader("variable_dialed_user"),
+		"unknown",
+	)
 	hangupCause := event.GetHeader("Hangup-Cause")
 
 	callStartTimeStr := event.GetHeader("variable_start_epoch")
@@ -67,20 +80,12 @@ func (s *Service) extractCDR(event *esl.Event) *cdr.CDR {
 	callEndTime := time.Now()
 	duration := 0
 
-	if callStartTimeStr != "" {
-		if epoch, err := time.Parse("2006-01-02 15:04:05", callStartTimeStr); err == nil {
-			callStartTime = epoch
-		} else if epoch, err := time.Parse(time.RFC3339, callStartTimeStr); err == nil {
-			callStartTime = epoch
-		}
+	if parsed, ok := parseFreeSWITCHTime(callStartTimeStr); ok {
+		callStartTime = parsed
 	}
 
-	if callEndTimeStr != "" {
-		if epoch, err := time.Parse("2006-01-02 15:04:05", callEndTimeStr); err == nil {
-			callEndTime = epoch
-		} else if epoch, err := time.Parse(time.RFC3339, callEndTimeStr); err == nil {
-			callEndTime = epoch
-		}
+	if parsed, ok := parseFreeSWITCHTime(callEndTimeStr); ok {
+		callEndTime = parsed
 	}
 
 	duration = max(int(callEndTime.Sub(callStartTime).Seconds()), 0)
@@ -95,4 +100,31 @@ func (s *Service) extractCDR(event *esl.Event) *cdr.CDR {
 		Disposition:     string(cdr.DetermineDisposition(hangupCause)),
 		HangupCause:     hangupCause,
 	}
+}
+
+func parseFreeSWITCHTime(value string) (time.Time, bool) {
+	if value == "" {
+		return time.Time{}, false
+	}
+
+	if epoch, err := strconv.ParseInt(value, 10, 64); err == nil {
+		return time.Unix(epoch, 0), true
+	}
+
+	for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed, true
+		}
+	}
+
+	return time.Time{}, false
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }

@@ -30,7 +30,7 @@ The project includes a complete custom ESL library in `internal/esl` with:
 
 ```
 .
-├── docker-compose.yml          # Docker Compose configuration for FreeSWITCH and PostgreSQL
+├── docker-compose.build.yml    # Working Docker Compose configuration for FreeSWITCH and PostgreSQL
 ├── sql/
 │   └── init.sql               # PostgreSQL schema initialization
 ├── freeswitch/
@@ -44,7 +44,8 @@ The project includes a complete custom ESL library in `internal/esl` with:
 │       │       ├── 1000.xml
 │       │       └── 1001.xml
 │       └── sip_profiles/
-│           └── external.xml
+│           ├── external.xml
+│           └── internal.xml
 ├── internal/
 │   └── esl/                  # Custom ESL library
 │       ├── command.go        # Command interface and implementations
@@ -80,18 +81,18 @@ make lint             # Run linter
 ### 1. Start FreeSWITCH and PostgreSQL
 
 ```bash
-docker-compose up -d
+docker compose -f docker-compose.build.yml up -d
 ```
 
 This will start:
-- FreeSWITCH on ports 5060/5080 (SIP), 8021 (ESL), and 16384-32768 (RTP)
-- PostgreSQL on port 5432
+- FreeSWITCH on host-networked SIP ports 5060/5080, ESL on 127.0.0.1:8021, and RTP ports 16384-32768
+- PostgreSQL on host port 5433
 
 ### 2. Verify Services
 
 Check that containers are running:
 ```bash
-docker-compose ps
+docker compose -f docker-compose.build.yml ps
 ```
 
 ### 3. Configure SIP Softphones
@@ -102,13 +103,13 @@ Register two SIP extensions:
 - Username: 1000
 - Password: 1234
 - Domain/Server: localhost (or your host IP if running in Docker)
-- Port: 5080
+- Port: 5060 for internal registration, or 5080 for external profile testing
 
 **Extension 1001:**
 - Username: 1001
 - Password: 1234
 - Domain/Server: localhost (or your host IP if running in Docker)
-- Port: 5080
+- Port: 5060 for internal registration, or 5080 for external profile testing
 
 ### 4. Test Call Flow
 
@@ -138,7 +139,7 @@ Make calls between the extensions and check the database:
 
 ```bash
 # Connect to PostgreSQL
-docker exec -it postgres psql -U freeswitch -d freeswitch_cdr
+docker exec -it freeswitch-postgres-build psql -U freeswitch -d freeswitch_cdr
 
 # Query CDRs
 SELECT * FROM cdr ORDER BY created_at DESC;
@@ -208,7 +209,7 @@ Edit `config.json` to change connection settings:
   },
   "postgresql": {
     "host": "localhost",
-    "port": "5432",
+    "port": "5433",
     "user": "freeswitch",
     "password": "freeswitch_pass",
     "dbname": "freeswitch_cdr"
@@ -246,25 +247,28 @@ The CDR table contains:
 
 ```bash
 # 1. Start services
-docker-compose -f docker-compose.build.yml up -d
+docker compose -f docker-compose.build.yml up -d
 
 # 2. Wait for FreeSWITCH to start (10-15 seconds)
 sleep 15
 
-# 3. Check if ESL port is binding
-docker exec freeswitch-build ss -tlnp | grep 8021
+# 3. Check if ESL port is listening
+docker exec freeswitch-build sh -lc 'grep -i ":1F55" /proc/net/tcp /proc/net/tcp6 || true'
 
 # 4. Test ESL connection manually
-echo "auth ClueCon" | nc 127.0.0.1 8021
+docker exec freeswitch-build fs_cli -H 127.0.0.1 -P 8021 -p ClueCon -x 'status'
 
-# 5. Start the Go CDR service
+# 5. Verify Sofia profiles
+docker exec freeswitch-build fs_cli -H 127.0.0.1 -P 8021 -p ClueCon -x 'sofia status'
+
+# 6. Start the Go CDR service
 go run main.go
 
-# 6. Make test calls with SIP softphones
-#   - Extension 1000: password 1234, port 5080
-#   - Extension 1001: password 1234, port 5080
+# 7. Make test calls with SIP softphones
+#   - Extension 1000: password 1234, port 5060
+#   - Extension 1001: password 1234, port 5060
 
-# 7. Check CDRs in database
+# 8. Check CDRs in database
 docker exec -it freeswitch-postgres-build psql -U freeswitch -d freeswitch_cdr -c "SELECT * FROM cdr ORDER BY created_at DESC LIMIT 5;"
 ```
 
@@ -272,7 +276,7 @@ docker exec -it freeswitch-postgres-build psql -U freeswitch -d freeswitch_cdr -
 
 ```bash
 # 1. Start services (FreeSWITCH will run but ESL won't work)
-docker-compose -f docker-compose.build.yml up -d
+docker compose -f docker-compose.build.yml up -d
 
 # 2. Verify FreeSWITCH is running (but ESL port won't bind)
 docker logs freeswitch-build | grep -i "freeswitch.*ready"
@@ -282,7 +286,7 @@ docker logs freeswitch-build | grep -i "freeswitch.*ready"
 #   - Make test calls between extensions
 
 # 4. Check FreeSWITCH status
-docker exec freeswitch-build fs_cli -x "status" -p ClueCon
+docker exec freeswitch-build fs_cli -H 127.0.0.1 -P 8021 -p ClueCon -x "status"
 ```
 
 ### Expected Results
@@ -303,7 +307,7 @@ docker exec freeswitch-build fs_cli -x "status" -p ClueCon
 
 ```bash
 # Check container status
-docker-compose -f docker-compose.build.yml ps
+docker compose -f docker-compose.build.yml ps
 
 # View FreeSWITCH logs
 docker logs freeswitch-build --tail 20
@@ -319,22 +323,23 @@ docker exec -it freeswitch-postgres-build psql -U freeswitch -d freeswitch_cdr -
 
 ### FreeSWITCH not starting
 ```bash
-docker-compose logs freeswitch
+docker compose -f docker-compose.build.yml logs freeswitch
 ```
 
 ### PostgreSQL connection issues
 ```bash
-docker-compose logs postgres
+docker compose -f docker-compose.build.yml logs postgres
 ```
 
 ### ESL connection issues (x86_64 only)
-- Verify FreeSWITCH is running: `docker-compose ps`
-- Check ESL port binding: `docker exec freeswitch-build ss -tlnp | grep 8021`
+- Verify FreeSWITCH is running: `docker compose -f docker-compose.build.yml ps`
+- Check ESL port binding: `docker exec freeswitch-build sh -lc 'grep -i ":1F55" /proc/net/tcp /proc/net/tcp6 || true'`
+- Use explicit CLI settings: `docker exec freeswitch-build fs_cli -H 127.0.0.1 -P 8021 -p ClueCon -x 'status'`
 - Check ESL configuration in `freeswitch/conf/autoload_configs/event_socket.conf.xml`
 - On ARM64: This is expected to fail due to IPv6 binding issue
 
 ### SIP registration issues
-- Check if FreeSWITCH is listening on the correct port: `docker exec freeswitch-build netstat -tulpn | grep 5080`
+- Check if FreeSWITCH is listening on SIP ports: `docker exec freeswitch-build fs_cli -H 127.0.0.1 -P 8021 -p ClueCon -x 'sofia status'`
 - Verify softphone configuration matches extension credentials
 - Try using the host IP instead of localhost if running in Docker
 

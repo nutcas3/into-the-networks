@@ -1,4 +1,4 @@
-v<include>
+<include>
   <user id="1000">
     <params>
       <param name="password" value="1234"/>

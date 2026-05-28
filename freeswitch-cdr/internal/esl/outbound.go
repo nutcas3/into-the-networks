@@ -57,7 +57,6 @@ func handleOutboundConnection(netConn net.Conn, handler OutboundHandler) {
 	}
 
 	go eslConn.receiveLoop()
-	go eslConn.eventLoop()
 
 	handler(ctx, eslConn, response)
 

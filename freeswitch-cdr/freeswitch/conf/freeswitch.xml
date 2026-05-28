@@ -1,13 +1,33 @@
 <?xml version="1.0"?>
 <document type="freeswitch/xml">
-  <section name="configuration">
-    <configuration name="switch.conf">
+  <X-PRE-PROCESS cmd="include" data="vars.xml"/>
+  
+  <section name="configuration" description="Various Configuration">
+    <configuration name="switch.conf" description="Core Configuration">
       <settings>
-        <param name="core-db-name" value="/usr/local/freeswitch/db/core.db"/>
+        <param name="core-db-name" value="/usr/db/core.db"/>
         <param name="loglevel" value="info"/>
         <param name="rtp-start-port" value="16384"/>
         <param name="rtp-end-port" value="32768"/>
       </settings>
     </configuration>
+
+    <X-PRE-PROCESS cmd="include" data="autoload_configs/*.xml"/>
   </section>
+
+  <section name="dialplan" description="Regex/XML Dialplan">
+    <context name="default">
+      <X-PRE-PROCESS cmd="include" data="dialplan/*.xml"/>
+    </context>
+  </section>
+
+  <section name="directory" description="User Directory">
+    <domain name="$${domain}">
+      <params>
+        <param name="dial-string" value="{presence_id=${dialed_user}@${dialed_domain}}${sofia_contact(${dialed_user}@${dialed_domain})}"/>
+      </params>
+      <X-PRE-PROCESS cmd="include" data="directory/default/*.xml"/>
+    </domain>
+  </section>
+
 </document>
