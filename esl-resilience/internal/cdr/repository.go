@@ -11,28 +11,28 @@ import (
 )
 
 type CallDetailRecord struct {
-	ID                    uuid.UUID      `db:"id"`
-	AccountCode           string         `db:"account_code"`
-	CallerIDName          string         `db:"caller_id_name"`
-	CallerIDNumber        string         `db:"caller_id_number"`
-	DestinationNumber     string         `db:"destination_number"`
-	StartTimestamp        time.Time      `db:"start_timestamp"`
-	AnswerTimestamp       sql.NullTime   `db:"answer_timestamp"`
-	EndTimestamp          sql.NullTime   `db:"end_timestamp"`
-	DurationSeconds       sql.NullInt64  `db:"duration_seconds"`
-	BillsecSeconds        sql.NullInt64  `db:"billsec_seconds"`
-	HangupCause           string         `db:"hangup_cause"`
-	ChannelUUID           uuid.UUID      `db:"channel_uuid"`
+	ID                     uuid.UUID      `db:"id"`
+	AccountCode            string         `db:"account_code"`
+	CallerIDName           string         `db:"caller_id_name"`
+	CallerIDNumber         string         `db:"caller_id_number"`
+	DestinationNumber      string         `db:"destination_number"`
+	StartTimestamp         time.Time      `db:"start_timestamp"`
+	AnswerTimestamp        sql.NullTime   `db:"answer_timestamp"`
+	EndTimestamp           sql.NullTime   `db:"end_timestamp"`
+	DurationSeconds        sql.NullInt64  `db:"duration_seconds"`
+	BillsecSeconds         sql.NullInt64  `db:"billsec_seconds"`
+	HangupCause            string         `db:"hangup_cause"`
+	ChannelUUID            uuid.UUID      `db:"channel_uuid"`
 	DestinationChannelUUID sql.NullString `db:"destination_channel_uuid"`
-	Context               string         `db:"context"`
-	CreatedAt             time.Time      `db:"created_at"`
+	Context                string         `db:"context"`
+	CreatedAt              time.Time      `db:"created_at"`
 }
 
 type CallMetadata struct {
-	ID     uuid.UUID `db:"id"`
-	CDRID  uuid.UUID `db:"cdr_id"`
-	Key    string    `db:"key"`
-	Value  string    `db:"value"`
+	ID    uuid.UUID `db:"id"`
+	CDRID uuid.UUID `db:"cdr_id"`
+	Key   string    `db:"key"`
+	Value string    `db:"value"`
 }
 
 type Repository struct {
@@ -90,9 +90,9 @@ func (r *Repository) CreateCDR(ctx context.Context, cdr *CallDetailRecord) error
 	return nil
 }
 
-func (r *Repository) UpdateCDR(ctx context.Context, channelUUID uuid.UUID, updates map[string]interface{}) error {
+func (r *Repository) UpdateCDR(ctx context.Context, channelUUID uuid.UUID, updates map[string]any) error {
 	setClause := ""
-	args := []interface{}{}
+	args := []any{}
 	argIndex := 1
 
 	for key, value := range updates {
@@ -184,8 +184,8 @@ func (r *Repository) GetActiveCalls(ctx context.Context) ([]*CallDetailRecord, e
 	return calls, nil
 }
 
-func (r *Repository) GetCallStatistics(ctx context.Context) (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
+func (r *Repository) GetCallStatistics(ctx context.Context) (map[string]any, error) {
+	stats := make(map[string]any)
 
 	// Total calls
 	var totalCalls int64

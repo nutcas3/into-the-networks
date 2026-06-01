@@ -167,11 +167,11 @@ func (b *Buffer) Stop() error {
 	return nil
 }
 
-func (b *Buffer) GetStats() map[string]interface{} {
+func (b *Buffer) GetStats() map[string]any {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	return map[string]interface{}{
+	return map[string]any{
 		"current_size":   len(b.events),
 		"max_size":       b.maxSize,
 		"dropped":        b.dropped,

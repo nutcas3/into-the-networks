@@ -35,7 +35,7 @@ func TestServerIntegration(t *testing.T) {
 		t.Error("Expected stats to be returned")
 	}
 
-	clientStats := stats["client"].(map[string]interface{})
+	clientStats := stats["client"].(map[string]any)
 	if clientStats["connected"].(bool) != true {
 		t.Error("Expected client to be connected")
 	}
@@ -177,7 +177,7 @@ func TestBufferIntegration(t *testing.T) {
 	defer buffer.Stop()
 
 	events := make([]*esl.Event, 7)
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		events[i] = &esl.Event{
 			Headers: map[string]string{
 				"Event-Name": "TEST",
@@ -335,12 +335,12 @@ func TestFullWorkflowIntegration(t *testing.T) {
 
 	stats := server.GetStats()
 
-	stateMachineStats := stats["state_machine"].(map[string]interface{})
+	stateMachineStats := stats["state_machine"].(map[string]any)
 	if stateMachineStats["total_calls"].(int) != 1 {
 		t.Errorf("Expected 1 total call, got %d", stateMachineStats["total_calls"].(int))
 	}
 
-	bufferStats := stats["buffer"].(map[string]interface{})
+	bufferStats := stats["buffer"].(map[string]any)
 	if bufferStats["current_size"].(int) != 1 {
 		t.Errorf("Expected buffer size 1, got %d", bufferStats["current_size"].(int))
 	}

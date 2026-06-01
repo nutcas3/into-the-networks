@@ -125,10 +125,7 @@ func (c *Client) connectionManager() {
 				}
 
 				time.Sleep(backoff)
-				backoff = time.Duration(float64(backoff) * c.config.BackoffMultiplier)
-				if backoff > c.config.MaxBackoff {
-					backoff = c.config.MaxBackoff
-				}
+				backoff = min(time.Duration(float64(backoff)*c.config.BackoffMultiplier), c.config.MaxBackoff)
 
 				continue
 			}
@@ -374,7 +371,7 @@ func (c *Client) GetConfig() Config {
 	return c.config
 }
 
-func (c *Client) GetMetrics() map[string]interface{} {
+func (c *Client) GetMetrics() map[string]any {
 	return c.metrics.GetAll()
 }
 

@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/nutcas3/esl-resilience/internal/esl"
@@ -111,9 +112,7 @@ func (m *Machine) processTransition(call *CallInfo, eventType string, event *esl
 	call.CurrentState = newState
 	call.UpdatedAt = time.Now()
 
-	for key, value := range event.Headers {
-		call.ChannelData[key] = value
-	}
+	maps.Copy(call.ChannelData, event.Headers)
 
 	m.logger.WithFields(logrus.Fields{
 		"uuid":           call.UUID,
@@ -168,9 +167,7 @@ func (m *Machine) GetCallInfo(uuid string) (*CallInfo, bool) {
 
 	copyCall := *call
 	copyCall.ChannelData = make(map[string]string)
-	for k, v := range call.ChannelData {
-		copyCall.ChannelData[k] = v
-	}
+	maps.Copy(copyCall.ChannelData, call.ChannelData)
 
 	return &copyCall, true
 }
@@ -197,9 +194,7 @@ func (m *Machine) GetAllCalls() map[string]*CallInfo {
 	for uuid, call := range m.calls {
 		copyCall := *call
 		copyCall.ChannelData = make(map[string]string)
-		for k, v := range call.ChannelData {
-			copyCall.ChannelData[k] = v
-		}
+		maps.Copy(copyCall.ChannelData, call.ChannelData)
 		result[uuid] = &copyCall
 	}
 
@@ -215,9 +210,7 @@ func (m *Machine) GetCallsByState(state esl.CallState) []*CallInfo {
 		if call.CurrentState == state {
 			copyCall := *call
 			copyCall.ChannelData = make(map[string]string)
-			for k, v := range call.ChannelData {
-				copyCall.ChannelData[k] = v
-			}
+			maps.Copy(copyCall.ChannelData, call.ChannelData)
 			calls = append(calls, &copyCall)
 		}
 	}
@@ -225,11 +218,11 @@ func (m *Machine) GetCallsByState(state esl.CallState) []*CallInfo {
 	return calls
 }
 
-func (m *Machine) GetStats() map[string]interface{} {
+func (m *Machine) GetStats() map[string]any {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	stats := map[string]interface{}{
+	stats := map[string]any{
 		"total_calls":    len(m.calls),
 		"active_calls":   m.ActiveCalls(),
 		"calls_by_state": make(map[esl.CallState]int),

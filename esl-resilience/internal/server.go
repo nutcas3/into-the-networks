@@ -202,10 +202,10 @@ func (s *Server) Stop() error {
 	return nil
 }
 
-func (s *Server) GetStats() map[string]interface{} {
-	stats := make(map[string]interface{})
+func (s *Server) GetStats() map[string]any {
+	stats := make(map[string]any)
 
-	stats["client"] = map[string]interface{}{
+	stats["client"] = map[string]any{
 		"connected": s.client.IsConnected(),
 		"metrics":   s.client.GetMetrics(),
 	}
@@ -214,7 +214,7 @@ func (s *Server) GetStats() map[string]interface{} {
 
 	stats["buffer"] = s.buffer.GetStats()
 
-	stats["monitor"] = map[string]interface{}{
+	stats["monitor"] = map[string]any{
 		"running": s.monitor.IsRunning(),
 	}
 
@@ -301,7 +301,7 @@ func registerEventHandlers(client *esl.Client, logger *logrus.Logger, cdrRepo *c
 			return
 		}
 
-		updates := map[string]interface{}{
+		updates := map[string]any{
 			"answer_timestamp": time.Now(),
 		}
 
@@ -324,7 +324,7 @@ func registerEventHandlers(client *esl.Client, logger *logrus.Logger, cdrRepo *c
 			return
 		}
 
-		updates := map[string]interface{}{
+		updates := map[string]any{
 			"end_timestamp": time.Now(),
 			"hangup_cause":  event.Headers["Hangup-Cause"],
 		}

@@ -55,7 +55,7 @@ func TestBufferEnqueueOverflow(t *testing.T) {
 	defer buffer.Stop()
 
 	events := make([]*Event, 5)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		events[i] = &Event{
 			Headers: map[string]string{"Event-Name": "TEST", "Index": string(rune(i))},
 			Body:    []byte("test body"),
@@ -104,7 +104,7 @@ func TestBufferFlush(t *testing.T) {
 	defer buffer.Stop()
 
 	events := make([]*Event, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		events[i] = &Event{
 			Headers: map[string]string{"Event-Name": "TEST", "Index": string(rune(i))},
 		}
@@ -132,7 +132,7 @@ func TestBufferClear(t *testing.T) {
 	buffer := NewBuffer(config)
 	defer buffer.Stop()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		buffer.Enqueue(&Event{
 			Headers: map[string]string{"Event-Name": "TEST"},
 		})
@@ -155,7 +155,7 @@ func TestBufferGetStats(t *testing.T) {
 	buffer := NewBuffer(config)
 	defer buffer.Stop()
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		buffer.Enqueue(&Event{
 			Headers: map[string]string{"Event-Name": "TEST"},
 		})
@@ -187,7 +187,7 @@ func TestBufferIsFull(t *testing.T) {
 		t.Error("Buffer should not be full initially")
 	}
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		buffer.Enqueue(&Event{
 			Headers: map[string]string{"Event-Name": "TEST"},
 		})
@@ -229,7 +229,7 @@ func TestBufferGetDropRate(t *testing.T) {
 		t.Error("Drop rate should be 0 initially")
 	}
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		buffer.Enqueue(&Event{
 			Headers: map[string]string{"Event-Name": "TEST"},
 		})

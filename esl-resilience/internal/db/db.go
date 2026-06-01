@@ -98,9 +98,9 @@ func (d *Database) Health() error {
 	return nil
 }
 
-func (d *Database) Stats() map[string]interface{} {
+func (d *Database) Stats() map[string]any {
 	stats := d.db.Stats()
-	return map[string]interface{}{
+	return map[string]any{
 		"open_connections":     stats.OpenConnections,
 		"in_use":               stats.InUse,
 		"idle":                 stats.Idle,
