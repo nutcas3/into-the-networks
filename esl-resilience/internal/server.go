@@ -8,6 +8,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/nutcas3/esl-resilience/internal/cdr"
+	"github.com/nutcas3/esl-resilience/internal/db"
 	"github.com/nutcas3/esl-resilience/internal/esl"
 	"github.com/nutcas3/esl-resilience/internal/monitor"
 	"github.com/nutcas3/esl-resilience/internal/state"
@@ -19,6 +22,8 @@ type Server struct {
 	stateMachine *state.Machine
 	buffer       *esl.Buffer
 	monitor      *monitor.PrometheusMonitor
+	database     *db.Database
+	cdrRepo      *cdr.Repository
 	logger       *logrus.Logger
 }
 
@@ -36,6 +41,14 @@ type Config struct {
 	}
 	Monitor struct {
 		Port int `env:"MONITOR_PORT" default:"9090"`
+	}
+	Database struct {
+		Host     string `env:"DB_HOST" default:"postgres"`
+		Port     int    `env:"DB_PORT" default:"5432"`
+		Username string `env:"DB_USERNAME" default:"freeswitch"`
+		Password string `env:"DB_PASSWORD" default:"freeswitch_pass"`
+		Database string `env:"DB_DATABASE" default:"freeswitch_cdr"`
+		SSLMode  string `env:"DB_SSL_MODE" default:"disable"`
 	}
 }
 
@@ -66,6 +79,21 @@ func DefaultConfig() Config {
 		}{
 			Port: 9090,
 		},
+		Database: struct {
+			Host     string `env:"DB_HOST" default:"postgres"`
+			Port     int    `env:"DB_PORT" default:"5432"`
+			Username string `env:"DB_USERNAME" default:"freeswitch"`
+			Password string `env:"DB_PASSWORD" default:"freeswitch_pass"`
+			Database string `env:"DB_DATABASE" default:"freeswitch_cdr"`
+			SSLMode  string `env:"DB_SSL_MODE" default:"disable"`
+		}{
+			Host:     "postgres",
+			Port:     5432,
+			Username: "freeswitch",
+			Password: "freeswitch_pass",
+			Database: "freeswitch_cdr",
+			SSLMode:  "disable",
+		},
 	}
 }
 
@@ -73,6 +101,24 @@ func NewServer(config Config) *Server {
 	logger := logrus.New()
 	logger.SetLevel(logrus.InfoLevel)
 	logger.SetFormatter(&logrus.JSONFormatter{})
+
+	// Initialize database
+	dbConfig := db.Config{
+		Host:     config.Database.Host,
+		Port:     config.Database.Port,
+		Username: config.Database.Username,
+		Password: config.Database.Password,
+		Database: config.Database.Database,
+		SSLMode:  config.Database.SSLMode,
+	}
+
+	database, err := db.NewDatabase(dbConfig)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to initialize database")
+	}
+
+	// Initialize CDR repository
+	cdrRepo := cdr.NewRepository(database.GetDB())
 
 	eslConfig := esl.DefaultConfig()
 	eslConfig.Host = config.FreeSWITCH.Host
@@ -95,13 +141,15 @@ func NewServer(config Config) *Server {
 	client.SetEventBuffer(buffer)
 	client.SetMonitor(monitor)
 
-	registerEventHandlers(client, logger)
+	registerEventHandlers(client, logger, cdrRepo)
 
 	server := &Server{
 		client:       client,
 		stateMachine: stateMachine,
 		buffer:       buffer,
 		monitor:      monitor,
+		database:     database,
+		cdrRepo:      cdrRepo,
 		logger:       logger,
 	}
 
@@ -140,6 +188,10 @@ func (s *Server) Stop() error {
 
 	if err := s.monitor.Stop(); err != nil {
 		errors = append(errors, fmt.Errorf("failed to stop monitor: %w", err))
+	}
+
+	if err := s.database.Close(); err != nil {
+		errors = append(errors, fmt.Errorf("failed to close database: %w", err))
 	}
 
 	if len(errors) > 0 {
@@ -197,13 +249,36 @@ func (s *Server) Run() error {
 	}
 }
 
-func registerEventHandlers(client *esl.Client, logger *logrus.Logger) {
+func registerEventHandlers(client *esl.Client, logger *logrus.Logger, cdrRepo *cdr.Repository) {
 	client.OnEvent("CHANNEL_CREATE", func(event *esl.Event) {
 		logger.WithFields(logrus.Fields{
 			"uuid":   event.Headers["Unique-ID"],
 			"caller": event.Headers["Caller-Username"],
 			"callee": event.Headers["Caller-Destination-Number"],
 		}).Info("Channel created")
+
+		// Create CDR record
+		channelUUID, err := uuid.Parse(event.Headers["Unique-ID"])
+		if err != nil {
+			logger.WithError(err).Error("Failed to parse channel UUID")
+			return
+		}
+
+		cdr := &cdr.CallDetailRecord{
+			ID:                channelUUID,
+			AccountCode:       event.Headers["Account-Code"],
+			CallerIDName:      event.Headers["Caller-ID-Name"],
+			CallerIDNumber:    event.Headers["Caller-ID-Number"],
+			DestinationNumber: event.Headers["Caller-Destination-Number"],
+			StartTimestamp:    time.Now(),
+			ChannelUUID:       channelUUID,
+			Context:           event.Headers["Context"],
+			CreatedAt:         time.Now(),
+		}
+
+		if err := cdrRepo.CreateCDR(context.Background(), cdr); err != nil {
+			logger.WithError(err).Error("Failed to create CDR")
+		}
 	})
 
 	client.OnEvent("CHANNEL_PROGRESS", func(event *esl.Event) {
@@ -218,6 +293,21 @@ func registerEventHandlers(client *esl.Client, logger *logrus.Logger) {
 			"uuid":   event.Headers["Unique-ID"],
 			"status": "answered",
 		}).Info("Call answered")
+
+		// Update CDR with answer timestamp
+		channelUUID, err := uuid.Parse(event.Headers["Unique-ID"])
+		if err != nil {
+			logger.WithError(err).Error("Failed to parse channel UUID")
+			return
+		}
+
+		updates := map[string]interface{}{
+			"answer_timestamp": time.Now(),
+		}
+
+		if err := cdrRepo.UpdateCDR(context.Background(), channelUUID, updates); err != nil {
+			logger.WithError(err).Error("Failed to update CDR answer timestamp")
+		}
 	})
 
 	client.OnEvent("CHANNEL_HANGUP_COMPLETE", func(event *esl.Event) {
@@ -226,6 +316,37 @@ func registerEventHandlers(client *esl.Client, logger *logrus.Logger) {
 			"hangup_cause": event.Headers["Hangup-Cause"],
 			"duration":     event.Headers["variable_billsec"],
 		}).Info("Call completed")
+
+		// Update CDR with end timestamp and final details
+		channelUUID, err := uuid.Parse(event.Headers["Unique-ID"])
+		if err != nil {
+			logger.WithError(err).Error("Failed to parse channel UUID")
+			return
+		}
+
+		updates := map[string]interface{}{
+			"end_timestamp": time.Now(),
+			"hangup_cause":  event.Headers["Hangup-Cause"],
+		}
+
+		// Parse duration if available
+		if billsec := event.Headers["variable_billsec"]; billsec != "" {
+			if duration, err := time.ParseDuration(billsec + "s"); err == nil {
+				updates["billsec_seconds"] = int64(duration.Seconds())
+				updates["duration_seconds"] = int64(duration.Seconds())
+			}
+		}
+
+		// Parse destination channel UUID if available
+		if destUUID := event.Headers["Bridge-B-Unique-ID"]; destUUID != "" {
+			if parsedUUID, err := uuid.Parse(destUUID); err == nil {
+				updates["destination_channel_uuid"] = parsedUUID.String()
+			}
+		}
+
+		if err := cdrRepo.UpdateCDR(context.Background(), channelUUID, updates); err != nil {
+			logger.WithError(err).Error("Failed to update CDR completion details")
+		}
 	})
 
 	client.OnEvent("CHANNEL_EXECUTE_COMPLETE", func(event *esl.Event) {
