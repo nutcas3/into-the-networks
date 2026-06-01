@@ -1,0 +1,40 @@
+<include>
+  <extension name="default">
+    <condition field="destination_number" expression="^(.*)$">
+      <action application="answer" data=""/>
+      <action application="sleep" data="1000"/>
+      <action application="playback" data="ivr/ivr-welcome_to_freeswitch.wav"/>
+      <action application="park" data=""/>
+    </condition>
+  </extension>
+  
+  <extension name="echo_test">
+    <condition field="destination_number" expression="^9196$">
+      <action application="answer" data=""/>
+      <action application="echo" data=""/>
+    </condition>
+  </extension>
+  
+  <extension name="milliwatt_test">
+    <condition field="destination_number" expression="^9197$">
+      <action application="answer" data=""/>
+      <action application="playback" data="tone_stream://L=1;%(1000,0,640)"/>
+    </condition>
+  </extension>
+  
+  <extension name="hangup_test">
+    <condition field="destination_number" expression="^9198$">
+      <action application="hangup" data="NORMAL_CLEARING"/>
+    </condition>
+  </extension>
+  
+  <extension name="esl_test">
+    <condition field="destination_number" expression="^1234$">
+      <action application="answer" data=""/>
+      <action application="set" data="fire_esl_events=true"/>
+      <action application="sleep" data="2000"/>
+      <action application="playback" data="ivr/ivr-thank_you.wav"/>
+      <action application="hangup" data="NORMAL_CLEARING"/>
+    </condition>
+  </extension>
+</include>

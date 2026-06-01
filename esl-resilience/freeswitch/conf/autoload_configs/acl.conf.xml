@@ -1,0 +1,39 @@
+<configuration name="acl.conf" description="Network Access Control Lists">
+  <network-lists>
+    <list name="lan" description="Local Network">
+      <node type="allow" cidr="127.0.0.1/32"/>
+      <node type="allow" cidr="192.168.0.0/16"/>
+      <node type="allow" cidr="10.0.0.0/8"/>
+      <node type="allow" cidr="172.16.0.0/12"/>
+      <node type="allow" cidr="0.0.0.0/0"/>
+    </list>
+    
+    <list name="docker" description="Docker Network">
+      <node type="allow" cidr="172.16.0.0/12"/>
+      <node type="allow" cidr="192.168.0.0/16"/>
+      <node type="allow" cidr="10.0.0.0/8"/>
+    </list>
+    
+    <list name="esl-resilience" description="ESL Resilience Service">
+      <node type="allow" cidr="172.16.0.0/12"/>
+      <node type="allow" cidr="192.168.0.0/16"/>
+      <node type="allow" cidr="10.0.0.0/8"/>
+    </list>
+    
+    <list name="public" description="Public Network">
+      <node type="allow" cidr="0.0.0.0/0"/>
+    </list>
+    
+    <list name="deny" description="Blocked IPs">
+      <node type="deny" cidr="0.0.0.0/0"/>
+    </list>
+    
+    <list name="nat.auto" description="Auto NAT Detection">
+      <node type="allow" cidr="0.0.0.0/0"/>
+    </list>
+    
+    <list name="domains" description="Domain ACL">
+      <node type="allow" cidr="0.0.0.0/0"/>
+    </list>
+  </network-lists>
+</configuration>

@@ -1,0 +1,29 @@
+<configuration name="cdr_csv.conf" description="CDR CSV Configuration">
+  <settings>
+    <param name="debug" value="false"/>
+    <param name="master-daily" value="true"/>
+    <param name="master-monthly" value="true"/>
+    <param name="daily" value="true"/>
+    <param name="rotate" value="true"/>
+    
+    <param name="cdr-base" value="/var/log/freeswitch/cdr-csv"/>
+    <param name="cdr-master-csv" value="Master.csv"/>
+    <param name="cdr-extra-csv" value="cdr.csv"/>
+    
+    <param name="cdr-fields" value="account_code,caller_id_name,caller_id_number,destination_number,duration,billsec,read_codec,write_codec,remote_media_ip,endpoint_disposition,hangup_cause"/>
+    
+    <param name="db-enabled" value="true"/>
+    <param name="db-type" value="postgresql"/>
+    <param name="db-host" value="postgres"/>
+    <param name="db-port" value="5432"/>
+    <param name="db-username" value="freeswitch"/>
+    <param name="db-password" value="freeswitch_pass"/>
+    <param name="db-database" value="freeswitch_cdr"/>
+    
+    <param name="db-table" value="cdr"/>
+    <param name="db-schema" value="public"/>
+    
+    <param name="db-pool-size" value="10"/>
+    <param name="db-timeout" value="30"/>
+  </settings>
+</configuration>

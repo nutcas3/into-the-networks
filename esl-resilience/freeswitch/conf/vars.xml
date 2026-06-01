@@ -1,0 +1,68 @@
+<include>  
+  <X-PRE-PROCESS cmd="set" data="domain=$${local_ip_v4}"/>
+  <X-PRE-PROCESS cmd="set" data="local_ip_v4=0.0.0.0"/>
+  <X-PRE-PROCESS cmd="set" data="local_ip_v6=::1"/>
+  
+  <X-PRE-PROCESS cmd="set" data="global_codec_prefs=PCMU,PCMA,G729"/>
+  <X-PRE-PROCESS cmd="set" data="outbound_codec_prefs=PCMU,PCMA,G729"/>
+  
+  <X-PRE-PROCESS cmd="set" data="rtp_start_port=16384"/>
+  <X-PRE-PROCESS cmd="set" data="rtp_end_port=16584"/>
+  
+  <X-PRE-PROCESS cmd="set" data="conference_bridge_dialplan=XML"/>
+  <X-PRE-PROCESS cmd="set" data="conference_bridge_context=default"/>
+  
+  <X-PRE-PROCESS cmd="set" data="hold_music=local_stream://moh"/>
+  <X-PRE-PROCESS cmd="set" data="transfer_ringback=us-ring"/>
+  
+  <X-PRE-PROCESS cmd="set" data="recordings_dir=/var/lib/freeswitch/recordings"/>
+  <X-PRE-PROCESS cmd="set" data="recordings_format=wav"/>
+  
+  <X-PRE-PROCESS cmd="set" data="log_dir=/var/log/freeswitch"/>
+  <X-PRE-PROCESS cmd="set" data="log_level=info"/>
+  
+  <X-PRE-PROCESS cmd="set" data="esl_host=0.0.0.0"/>
+  <X-PRE-PROCESS cmd="set" data="esl_port=8021"/>
+  <X-PRE-PROCESS cmd="set" data="esl_password=ClueCon"/>
+  
+  <X-PRE-PROCESS cmd="set" data="db_host=postgres"/>
+  <X-PRE-PROCESS cmd="set" data="db_port=5432"/>
+  <X-PRE-PROCESS cmd="set" data="db_username=freeswitch"/>
+  <X-PRE-PROCESS cmd="set" data="db_password=freeswitch_pass"/>
+  <X-PRE-PROCESS cmd="set" data="db_database=freeswitch_cdr"/>
+  
+  <X-PRE-PROCESS cmd="set" data="max_sessions=1000"/>
+  <X-PRE-PROCESS cmd="set" data="sessions_per_second=100"/>
+  
+  <X-PRE-PROCESS cmd="set" data="internal_auth_calls=false"/>
+  <X-PRE-PROCESS cmd="set" data="external_auth_calls=true"/>
+  
+  <X-PRE-PROCESS cmd="set" data="conf_dir=/etc/freeswitch"/>
+  <X-PRE-PROCESS cmd="set" data="run_dir=/var/run/freeswitch"/>
+  <X-PRE-PROCESS cmd="set" data="db_dir=/var/lib/freeswitch/db"/>
+  
+  <X-PRE-PROCESS cmd="set" data="timezone=UTC"/>
+  <X-PRE-PROCESS cmd="set" data="date_format=%Y-%m-%d %H:%M:%S"/>
+  
+  <X-PRE-PROCESS cmd="set" data="debug_level=0"/>
+  <X-PRE-PROCESS cmd="set" data="debug_pause=false"/>
+  
+  <X-PRE-PROCESS cmd="set" data="fire_esl_events=true"/>
+  <X-PRE-PROCESS cmd="set" data="fire_all_events=true"/>
+  
+  <X-PRE-PROCESS cmd="set" data="sip_port=5060"/>
+  <X-PRE-PROCESS cmd="set" data="sip_tls_port=5061"/>
+  <X-PRE-PROCESS cmd="set" data="sip_external_port=5080"/>
+  <X-PRE-PROCESS cmd="set" data="sip_external_tls_port=5081"/>
+  
+  <X-PRE-PROCESS cmd="set" data="media_bug_dtmf_detect_level=8"/>
+  <X-PRE-PROCESS cmd="set" data="media_bug_dtmf_duration=100"/>
+  
+  <X-PRE-PROCESS cmd="set" data="default_language=en"/>
+  <X-PRE-PROCESS cmd="set" data="default_dialect=us"/>
+  <X-PRE-PROCESS cmd="set" data="default_voice=male"/>
+  
+  <X-PRE-PROCESS cmd="set" data="esl_resilience_enabled=true"/>
+  <X-PRE-PROCESS cmd="set" data="esl_resilience_host=esl-resilience"/>
+  <X-PRE-PROCESS cmd="set" data="esl_resilience_port=9090"/>
+</include>

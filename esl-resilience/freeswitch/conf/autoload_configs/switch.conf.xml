@@ -1,0 +1,35 @@
+<configuration name="switch.conf" description="Core Switch Configuration">
+  <settings>
+    <param name="max-dtmf-duration" value="2000"/>
+    <param name="default-dtmf-duration" value="100"/>
+    <param name="rtp-start-port" value="16384"/>
+    <param name="rtp-end-port" value="16584"/>
+    
+    <param name="sessions-per-second" value="1000"/>
+    <param name="rtp-timer-name" value="soft"/>
+    
+    <param name="loglevel" value="info"/>
+    <param name="log-facility" value="daemon"/>
+    
+    <param name="crash-protection" value="false"/>
+    <param name="dump-core" value="false"/>
+    
+    <param name="max-sessions" value="1000"/>
+    <param name="session-db" value="sqlite"/>
+    
+    <param name="cpu-affinity" value="false"/>
+    
+    <param name="realtime-priority" value="0"/>
+    <param name="realtime-scheduler" value="false"/>
+    
+    <param name="auto-reload" value="true"/>
+    
+    <param name="debug-level" value="0"/>
+    <param name="debug-pause" value="false"/>
+    
+    <param name="secure-string" value="FreeSWITCH is the best!"/>
+    
+    <param name="send-all-events-on-execute" value="true"/>
+    <param name="enable-secure-string" value="true"/>
+  </settings>
+</configuration>
