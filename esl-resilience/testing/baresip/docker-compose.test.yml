@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # FreeSWITCH Service
+  freeswitch:
+    image: bdfoster/freeswitch:1.10
+    container_name: freeswitch-test
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5080:5080/udp"
+      - "5080:5080/tcp"
+      - "8021:8021/tcp"
+      - "16384-16584:16384-16584/udp"
+    volumes:
+      - ../freeswitch/conf:/etc/freeswitch
+      - ./freeswitch/log:/var/log/freeswitch
+      - ./freeswitch/recordings:/var/lib/freeswitch/recordings
+    environment:
+      - FS_CONF_DIR=/etc/freeswitch
+    networks:
+      - test-network
+    restart: unless-stopped
+
+  # ESL Resilience Service
+  esl-resilience:
+    build: ../..
+    container_name: esl-resilience-test
+    ports:
+      - "9090:9090"
+    environment:
+      - FREESWITCH_HOST=freeswitch
+      - FREESWITCH_PORT=8021
+      - FREESWITCH_PASSWORD=ClueCon
+      - ESL_MAX_RETRIES=10
+      - ESL_INITIAL_BACKOFF=1s
+      - ESL_MAX_BACKOFF=60s
+      - ESL_BUFFER_SIZE=10000
+      - MONITOR_PORT=9090
+    depends_on:
+      - freeswitch
+    networks:
+      - test-network
+    restart: unless-stopped
+
+  # Baresip Test Client 1
+  baresip-client1:
+    image: baresip/baresip:latest
+    container_name: baresip-client1
+    volumes:
+      - ./.config/baresip:/home/baresip/.config/baresip
+      - ./audio:/tmp/audio
+    environment:
+      - HOME=/home/baresip
+    networks:
+      - test-network
+    command: baresip -f /home/baresip/.config/baresip/config
+    depends_on:
+      - freeswitch
+    restart: unless-stopped
+
+  # Baresip Test Client 2
+  baresip-client2:
+    image: baresip/baresip:latest
+    container_name: baresip-client2
+    volumes:
+      - ./.config/baresip2:/home/baresip/.config/baresip
+      - ./audio:/tmp/audio
+    environment:
+      - HOME=/home/baresip
+    networks:
+      - test-network
+    command: baresip -f /home/baresip/.config/baresip/config
+    depends_on:
+      - freeswitch
+    restart: unless-stopped
+
+  # PostgreSQL for CDR
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-test
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=freeswitch_cdr
+      - POSTGRES_USER=freeswitch
+      - POSTGRES_PASSWORD=freeswitch_pass
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+      - ../../sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - test-network
+    restart: unless-stopped
+
+  # Prometheus for Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-test
+    ports:
+      - "9091:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-test-data:/prometheus
+    networks:
+      - test-network
+    restart: unless-stopped
+
+networks:
+  test-network:
+    driver: bridge
+
+volumes:
+  postgres-test-data:
+  prometheus-test-data:

@@ -1,0 +1,10 @@
+# Baresip Account Configuration for ESL Resilience Testing
+# Profile 1 - Test User 1000
+<sip:1000@localhost>;transport=udp
+1000password
+sip:1000@localhost:5060;regint=60;outbound=""
+
+# Profile 2 - Test User 1001  
+<sip:1001@localhost>;transport=udp
+1001password
+sip:1001@localhost:5060;regint=60;outbound=""
