@@ -12,8 +12,15 @@ services:
       - ESL_MAX_BACKOFF=60s
       - ESL_BUFFER_SIZE=10000
       - MONITOR_PORT=9090
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=freeswitch
+      - DB_PASSWORD=freeswitch_pass
+      - DB_DATABASE=freeswitch_cdr
+      - DB_SSL_MODE=disable
     depends_on:
       - freeswitch
+      - postgres
       - prometheus
     networks:
       - voip-network
