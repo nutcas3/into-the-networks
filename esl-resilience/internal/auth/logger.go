@@ -74,3 +74,9 @@ func (l *LogrusLogger) WithFields(fields map[string]any) Logger {
 		entry: l.entry.WithFields(fields),
 	}
 }
+
+func (l *LogrusLogger) WithError(err error) Logger {
+	return &LogrusLogger{
+		entry: l.entry.WithError(err),
+	}
+}

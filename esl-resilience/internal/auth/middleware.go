@@ -15,15 +15,16 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewAuthenticator(tenantMgr *tenant.Manager) *Authenticator {
+func NewAuthenticator(tenantMgr *tenant.Manager, rateLimiter RateLimiter) *Authenticator {
 	logger := NewLogrusLogger()
 	logger.SetLevel("info")
 
 	return &Authenticator{
-		tenantMgr:  tenantMgr,
-		apiKeys:    make(map[string]*APIKey),
-		sessionMgr: NewSessionManager(),
-		logger:     logger,
+		tenantMgr:   tenantMgr,
+		apiKeys:     make(map[string]*APIKey),
+		sessionMgr:  NewSessionManager(),
+		rateLimiter: rateLimiter,
+		logger:      logger,
 	}
 }
 
@@ -268,15 +269,41 @@ func (a *Authenticator) RequireTenantAccess(feature string) func(http.Handler) h
 func (a *Authenticator) RateLimit(requestsPerMinute int) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, ok := GetTenantID(r.Context())
+			tenantID, ok := GetTenantID(r.Context())
 			if !ok {
 				next.ServeHTTP(w, r) // Skip rate limiting for unauthenticated requests (they'll be caught by auth middleware)
 				return
 			}
 
-			// Simple in-memory rate limiting (in production, use Redis or similar)
-			// TODO: Implement tenant-specific rate limiting using tenantID
-			// This is a placeholder implementation
+			// Use Redis-based rate limiting with tenant-specific limits
+			ctx := r.Context()
+			window := time.Minute // 1 minute window
+
+			allowed, err := a.rateLimiter.AllowTenant(ctx, tenantID, requestsPerMinute, window)
+			if err != nil {
+				a.logger.WithError(err).Error("Rate limit check failed")
+				// Fail open - allow the request but log the error
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if !allowed {
+				// Get rate limit stats for response headers
+				stats, _ := a.rateLimiter.GetStats(ctx, fmt.Sprintf("tenant:%s", tenantID.String()))
+
+				w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", requestsPerMinute))
+				if stats != nil {
+					w.Header().Set("X-RateLimit-Remaining", fmt.Sprintf("%d", stats.Remaining))
+					if !stats.ResetTime.IsZero() {
+						w.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%d", stats.ResetTime.Unix()))
+					}
+				}
+
+				w.Header().Set("Retry-After", "60") // Retry after 1 minute
+				http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
+				return
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}

@@ -9,10 +9,11 @@ import (
 )
 
 type Authenticator struct {
-	tenantMgr  TenantManager
-	apiKeys    map[string]*APIKey
-	sessionMgr *SessionManager
-	logger     Logger
+	tenantMgr   TenantManager
+	apiKeys     map[string]*APIKey
+	sessionMgr  *SessionManager
+	rateLimiter RateLimiter
+	logger      Logger
 }
 
 type APIKey struct {
@@ -79,6 +80,7 @@ type Logger interface {
 	Debugf(format string, args ...any)
 	WithField(key string, value any) Logger
 	WithFields(fields map[string]any) Logger
+	WithError(err error) Logger
 }
 
 // RWMutex interface for testing
