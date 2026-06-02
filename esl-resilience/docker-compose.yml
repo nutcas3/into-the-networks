@@ -18,10 +18,14 @@ services:
       - DB_PASSWORD=freeswitch_pass
       - DB_DATABASE=freeswitch_cdr
       - DB_SSL_MODE=disable
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
     depends_on:
       - freeswitch
       - postgres
       - prometheus
+      - redis
     networks:
       - voip-network
     restart: unless-stopped
@@ -92,6 +96,22 @@ services:
       - voip-network
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - voip-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -109,17 +129,6 @@ services:
     restart: unless-stopped
     depends_on:
       - prometheus
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - voip-network
-    restart: unless-stopped
 
 networks:
   voip-network:
