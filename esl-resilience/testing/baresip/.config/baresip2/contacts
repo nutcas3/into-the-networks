@@ -1,0 +1,13 @@
+# Baresip Contacts for ESL Resilience Testing
+
+# Test Contacts
+Test User 1000      sip:1000@localhost:5060
+Test User 1001      sip:1001@localhost:5060
+Test Extension 1234 sip:1234@localhost:5060
+Echo Test           sip:9196@localhost:5060
+Milliwatt Test      sip:9197@localhost:5060
+
+# FreeSWITCH Test Numbers
+Welcome Message     sip:9999@localhost:5060
+Music on Hold       sip:9998@localhost:5060
+Conference Room     sip:3000@localhost:5060

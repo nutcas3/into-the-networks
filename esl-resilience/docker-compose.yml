@@ -1,0 +1,141 @@
+services:
+  esl-resilience:
+    build: .
+    ports:
+      - "9090:9090"
+    environment:
+      - FREESWITCH_HOST=freeswitch
+      - FREESWITCH_PORT=8021
+      - FREESWITCH_PASSWORD=ClueCon
+      - ESL_MAX_RETRIES=10
+      - ESL_INITIAL_BACKOFF=1s
+      - ESL_MAX_BACKOFF=60s
+      - ESL_BUFFER_SIZE=10000
+      - MONITOR_PORT=9090
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=freeswitch
+      - DB_PASSWORD=freeswitch_pass
+      - DB_DATABASE=freeswitch_cdr
+      - DB_SSL_MODE=disable
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+    depends_on:
+      - freeswitch
+      - postgres
+      - prometheus
+      - redis
+    networks:
+      - voip-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  freeswitch:
+    image: bdfoster/freeswitch:1.10
+    container_name: freeswitch
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5080:5080/udp"
+      - "5080:5080/tcp"
+      - "8021:8021/tcp"
+      - "16384-16584:16384-16584/udp"
+    volumes:
+      - ./freeswitch/conf:/etc/freeswitch
+      - ./freeswitch/log:/var/log/freeswitch
+      - ./freeswitch/recordings:/var/lib/freeswitch/recordings
+    environment:
+      - FS_CONF_DIR=/etc/freeswitch
+    networks:
+      - voip-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "fs_cli", "-x", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: freeswitch-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=freeswitch_cdr
+      - POSTGRES_USER=freeswitch
+      - POSTGRES_PASSWORD=freeswitch_pass
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - voip-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9091:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - voip-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - voip-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - voip-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+networks:
+  voip-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  prometheus_data:
+  grafana_data:
+  redis_data:

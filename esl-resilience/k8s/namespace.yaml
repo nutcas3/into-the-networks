@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: esl-resilience
+  labels:
+    name: esl-resilience
+    app: esl-resilience

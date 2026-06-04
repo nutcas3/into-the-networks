@@ -1,0 +1,64 @@
+# Baresip Configuration for ESL Resilience Testing
+
+# General Settings
+display_name      Baresip Test
+sip_listen        0.0.0.0:5060
+sip_cafile        /etc/ssl/certs/ca-certificates.crt
+
+# Audio Settings
+audio_player      pulse
+audio_source      pulse
+audio_source      pulse
+audio_level       0
+
+# Codec Preferences
+audio_codecs      pcma pcmu g729 g722 opus speex16
+
+# Call Settings
+call_timeout      30
+call_progress_timeout 60
+call_hold_timeout 300
+
+# Registration Settings
+regint            60
+regretry          10
+regbwait          3000
+
+# Network Settings
+dns_server        8.8.8.8
+dns_cache          true
+nat_bind           true
+
+# Media Settings
+rtp_ports          10000-20000
+rtp_timeout        60
+rtcp_enable        true
+
+# Video Settings (disabled for audio testing)
+video_source      null
+video_display      null
+
+# Module Settings
+module_path       /usr/lib/baresip/modules
+module_app        gtk.so
+module_app        g722.so
+module_app        g729.so
+module_app        opus.so
+module_app        speex.so
+module_app        srtp.so
+module_app        zrtp.so
+
+# Debug Settings
+debug             2
+sip_debug         true
+moddebug          false
+
+# Answer Mode
+answer_mode       manual
+
+# Call History
+call_history       true
+
+# Logging
+log_level         INFO
+log_file          /tmp/baresip.log

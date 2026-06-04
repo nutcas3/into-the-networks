@@ -1,0 +1,31 @@
+<configuration name="logfile.conf" description="Logging Configuration">
+  <settings>
+    <param name="log-facility" value="daemon"/>
+    <param name="log-level" value="info"/>
+    <param name="log-uuid" value="true"/>
+    <param name="print-date" value="true"/>
+    
+    <param name="logfile" value="/var/log/freeswitch/freeswitch.log"/>
+    <param name="rotate" value="true"/>
+    <param name="max-log-size" value="100"/>
+    <param name="max-rotate" value="10"/>
+    
+    <param name="log-esl-events" value="true"/>
+    <param name="esl-logfile" value="/var/log/freeswitch/esl_events.log"/>
+    
+    <param name="cdr-logfile" value="/var/log/freeswitch/cdr.log"/>
+    
+    <param name="error-logfile" value="/var/log/freeswitch/error.log"/>
+    
+    <param name="debug-logfile" value="/var/log/freeswitch/debug.log"/>
+    
+    <param name="console-log-level" value="info"/>
+    <param name="console-quiet" value="false"/>
+    
+    <param name="perf-logfile" value="/var/log/freeswitch/perf.log"/>
+    <param name="perf-log-level" value="info"/>
+    
+    <param name="media-logfile" value="/var/log/freeswitch/media.log"/>
+    <param name="media-log-level" value="warn"/>
+  </settings>
+</configuration>
