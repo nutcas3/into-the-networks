@@ -128,11 +128,13 @@ type AlertRule struct {
 }
 
 type AlertManager struct {
-	rules    map[string]*AlertRule
-	alerts   map[string]*Alert
-	handlers []AlertHandler
-	mu       sync.RWMutex
-	logger   *logrus.Logger
+	rules              map[string]*AlertRule
+	alerts             map[string]*Alert
+	handlers           []AlertHandler
+	conditionStartTime map[string]time.Time // Track when conditions first became true
+	monitor            *EnhancedMonitor     // Reference to fetch actual metrics
+	mu                 sync.RWMutex
+	logger             *logrus.Logger
 }
 
 type AlertHandler interface {
