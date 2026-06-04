@@ -49,7 +49,6 @@ func NewPrometheusMonitor() *PrometheusMonitor {
 	return monitor
 }
 
-// initMetrics initializes all Prometheus metrics
 func (m *PrometheusMonitor) initMetrics() {
 	m.connectionStatus = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "esl_connection_status",
@@ -87,7 +86,6 @@ func (m *PrometheusMonitor) initMetrics() {
 	})
 }
 
-// getAllMetrics returns all metrics for registration
 func (m *PrometheusMonitor) getAllMetrics() []prometheus.Collector {
 	return []prometheus.Collector{
 		m.connectionStatus,
@@ -100,7 +98,6 @@ func (m *PrometheusMonitor) getAllMetrics() []prometheus.Collector {
 	}
 }
 
-// Start starts the Prometheus metrics server
 func (m *PrometheusMonitor) Start() error {
 	if m.server != nil {
 		return fmt.Errorf("monitor already started")
@@ -118,7 +115,6 @@ func (m *PrometheusMonitor) Start() error {
 	return m.server.ListenAndServe()
 }
 
-// Stop stops the Prometheus metrics server
 func (m *PrometheusMonitor) Stop() error {
 	if m.server == nil {
 		return nil
@@ -126,7 +122,6 @@ func (m *PrometheusMonitor) Stop() error {
 	return m.server.Close()
 }
 
-// RecordConnection records connection status
 func (m *PrometheusMonitor) RecordConnection(status bool) {
 	if status {
 		m.connectionStatus.Set(1)
@@ -135,22 +130,18 @@ func (m *PrometheusMonitor) RecordConnection(status bool) {
 	}
 }
 
-// RecordEvent records an event type
 func (m *PrometheusMonitor) RecordEvent(eventType string) {
 	m.eventsProcessed.Inc()
 }
 
-// RecordReconnection records a reconnection attempt
 func (m *PrometheusMonitor) RecordReconnection(attempt int) {
 	m.reconnectionAttempts.Inc()
 }
 
-// RecordError records an error (currently just logs)
 func (m *PrometheusMonitor) RecordError(err error) {
 	m.logger.WithError(err).Error("ESL error recorded")
 }
 
-// IncrementCounter increments a counter metric
 func (m *PrometheusMonitor) IncrementCounter(name string, labels map[string]string) {
 	switch name {
 	case "esl_events_processed_total":
@@ -166,7 +157,6 @@ func (m *PrometheusMonitor) IncrementCounter(name string, labels map[string]stri
 	}
 }
 
-// SetGauge sets a gauge metric
 func (m *PrometheusMonitor) SetGauge(name string, value float64, labels map[string]string) {
 	switch name {
 	case "esl_connection_status":
@@ -180,22 +170,18 @@ func (m *PrometheusMonitor) SetGauge(name string, value float64, labels map[stri
 	}
 }
 
-// SetActiveCalls sets the number of active calls
 func (m *PrometheusMonitor) SetActiveCalls(count int) {
 	m.activeCalls.Set(float64(count))
 }
 
-// SetBufferSize sets the current buffer size
 func (m *PrometheusMonitor) SetBufferSize(size int) {
 	m.bufferSize.Set(float64(size))
 }
 
-// IncrementBufferDropped increments the buffer dropped counter
 func (m *PrometheusMonitor) IncrementBufferDropped() {
 	m.bufferDropped.Inc()
 }
 
-// IsRunning returns true if the monitor server is running
 func (m *PrometheusMonitor) IsRunning() bool {
 	return m.server != nil
 }

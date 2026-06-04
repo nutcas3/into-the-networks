@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nutcas3/esl-resilience/internal/auth"
 	"github.com/nutcas3/esl-resilience/internal/cdr"
 	"github.com/nutcas3/esl-resilience/internal/db"
 	"github.com/nutcas3/esl-resilience/internal/esl"
 	"github.com/nutcas3/esl-resilience/internal/monitor"
 	"github.com/nutcas3/esl-resilience/internal/state"
+	"github.com/nutcas3/esl-resilience/internal/tenant"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,6 +26,9 @@ type Server struct {
 	monitor      *monitor.PrometheusMonitor
 	database     *db.Database
 	cdrRepo      *cdr.Repository
+	tenantMgr    *tenant.Manager
+	auth         *auth.Authenticator
+	rateLimiter  auth.RateLimiter
 	logger       *logrus.Logger
 }
 
@@ -49,6 +54,11 @@ type Config struct {
 		Password string `env:"DB_PASSWORD" default:"freeswitch_pass"`
 		Database string `env:"DB_DATABASE" default:"freeswitch_cdr"`
 		SSLMode  string `env:"DB_SSL_MODE" default:"disable"`
+	}
+	Redis struct {
+		Addr     string `env:"REDIS_ADDR" default:"localhost:6379"`
+		Password string `env:"REDIS_PASSWORD" default:""`
+		DB       int    `env:"REDIS_DB" default:"0"`
 	}
 }
 
@@ -94,6 +104,15 @@ func DefaultConfig() Config {
 			Database: "freeswitch_cdr",
 			SSLMode:  "disable",
 		},
+		Redis: struct {
+			Addr     string `env:"REDIS_ADDR" default:"localhost:6379"`
+			Password string `env:"REDIS_PASSWORD" default:""`
+			DB       int    `env:"REDIS_DB" default:"0"`
+		}{
+			Addr:     "localhost:6379",
+			Password: "",
+			DB:       0,
+		},
 	}
 }
 
@@ -119,6 +138,20 @@ func NewServer(config Config) *Server {
 
 	// Initialize CDR repository
 	cdrRepo := cdr.NewRepository(database.GetDB())
+
+	// Initialize tenant manager
+	tenantMgr := tenant.NewManager()
+
+	// Initialize Redis rate limiter
+	var rateLimiter auth.RateLimiter
+	rateLimiter, err = auth.NewRedisRateLimiter(config.Redis.Addr, config.Redis.Password, "esl_resilience")
+	if err != nil {
+		logger.WithError(err).Warn("Failed to initialize Redis rate limiter, falling back to in-memory")
+		rateLimiter = auth.NewInMemoryRateLimiter()
+	}
+
+	// Initialize authenticator with rate limiter
+	authenticator := auth.NewAuthenticator(tenantMgr, rateLimiter)
 
 	eslConfig := esl.DefaultConfig()
 	eslConfig.Host = config.FreeSWITCH.Host
@@ -150,6 +183,9 @@ func NewServer(config Config) *Server {
 		monitor:      monitor,
 		database:     database,
 		cdrRepo:      cdrRepo,
+		tenantMgr:    tenantMgr,
+		auth:         authenticator,
+		rateLimiter:  rateLimiter,
 		logger:       logger,
 	}
 
