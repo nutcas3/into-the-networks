@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
+	prommodel "github.com/prometheus/client_model/go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -171,17 +172,31 @@ func (am *AlertManager) calculateCallFailureRate() (float64, error) {
 }
 
 func (am *AlertManager) getGaugeValue(gauge prometheus.Gauge) (float64, error) {
-	// Prometheus gauges don't expose their current value directly
-	// In production, this would scrape from the HTTP metrics endpoint
-	// For now, return 0 as placeholder
-	return 0, nil
+	// Use the Write method to get the current metric value
+	metric := &prommodel.Metric{}
+	if err := gauge.Write(metric); err != nil {
+		return 0, fmt.Errorf("failed to read gauge value: %w", err)
+	}
+
+	if metric.Gauge == nil {
+		return 0, fmt.Errorf("gauge metric is nil")
+	}
+
+	return metric.Gauge.GetValue(), nil
 }
 
 func (am *AlertManager) getCounterValue(counter prometheus.Counter) (float64, error) {
-	// Prometheus counters don't expose their current value directly
-	// In production, this would scrape from the HTTP metrics endpoint
-	// For now, return 0 as placeholder
-	return 0, nil
+	// Use the Write method to get the current metric value
+	metric := &prommodel.Metric{}
+	if err := counter.Write(metric); err != nil {
+		return 0, fmt.Errorf("failed to read counter value: %w", err)
+	}
+
+	if metric.Counter == nil {
+		return 0, fmt.Errorf("counter metric is nil")
+	}
+
+	return metric.Counter.GetValue(), nil
 }
 
 func (am *AlertManager) parseMetricName(condition string) string {
@@ -246,6 +261,7 @@ func (am *AlertManager) checkDurationThreshold(rule *AlertRule, currentValue flo
 	}
 
 	// Condition hasn't been true long enough yet
+	_ = currentValue // Use the value to avoid unused parameter warning
 	return false
 }
 
