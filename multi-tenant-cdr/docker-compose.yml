@@ -1,0 +1,100 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: cdr-postgres
+    environment:
+      POSTGRES_DB: cdr_db
+      POSTGRES_USER: cdr_user
+      POSTGRES_PASSWORD: cdr_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cdr_user -d cdr_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - telephony
+
+  redis:
+    image: redis:9-alpine
+    container_name: cdr-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - telephony
+
+  freeswitch:
+    image: freeswitch/freeswitch:1.10
+    container_name: cdr-freeswitch
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5080:5080/udp"
+      - "5080:5080/tcp"
+      - "8021:8021/tcp"
+      - "16384-16484:16384-16484/udp"
+    volumes:
+      - ./freeswitch/conf:/etc/freeswitch
+      - freeswitch_recordings:/var/lib/freeswitch/recordings
+    environment:
+      - FS_PASSWORD=ClueCon
+    healthcheck:
+      test: ["CMD", "fs_cli", "-x", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - telephony
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cdr-api
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: cdr_db
+      DB_USER: cdr_user
+      DB_PASSWORD: cdr_password
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      FREESWITCH_HOST: freeswitch
+      FREESWITCH_PORT: 8021
+      FREESWITCH_PASSWORD: ClueCon
+      JWT_SECRET: your-secret-key-change-in-production
+      JWT_DURATION: 24h
+      LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      freeswitch:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - telephony
+
+networks:
+  telephony:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  freeswitch_recordings:
