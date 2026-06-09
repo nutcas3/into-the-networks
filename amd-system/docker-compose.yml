@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  amd-ml:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    container_name: amd-ml
+    ports:
+      - "5000:5000"
+    environment:
+      - ML_PORT=5000
+      - MODEL_PATH=/app/models/amd_model.pkl
+      - SAMPLE_RATE=8000
+      - N_MFCC=13
+    volumes:
+      - ./ml/models:/app/models:ro
+    restart: unless-stopped
+    networks:
+      - amd
+
+  amd-system:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: amd-system
+    ports:
+      - "8086:8086"
+    environment:
+      - PORT=8086
+      - LOG_LEVEL=info
+      - ML_ENDPOINT=http://amd-ml:5000
+      - AGENT_QUEUE=agent_queue
+      - VOICEMAIL_QUEUE=voicemail_queue
+      - FAX_QUEUE=fax_queue
+      - RETRY_QUEUE=retry_queue
+    depends_on:
+      - amd-ml
+    restart: unless-stopped
+    networks:
+      - amd
+
+networks:
+  amd:
+    driver: bridge
