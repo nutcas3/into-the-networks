@@ -1,0 +1,47 @@
+# Binaries
+/voip-push
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+
+# Go vendor directory
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
+# Certificates (sensitive)
+certs/
+*.p12
+*.p8
+*.pem
+
+# Docker
+.dockerignore
+
+# Temporary files
+tmp/
+temp/

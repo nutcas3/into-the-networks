@@ -1,0 +1,29 @@
+services:
+  voip-push:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: voip-push
+    ports:
+      - "8084:8084"
+    environment:
+      - PORT=8084
+      - LOG_LEVEL=info
+      - FCM_SERVER_KEY=${FCM_SERVER_KEY}
+      - FCM_PROJECT_ID=${FCM_PROJECT_ID}
+      - APNS_BUNDLE_ID=${APNS_BUNDLE_ID}
+      - APNS_CERT_PATH=${APNS_CERT_PATH}
+      - APNS_CERT_PASSWORD=${APNS_CERT_PASSWORD}
+      - APNS_USE_JWT=${APNS_USE_JWT}
+      - APNS_KEY_ID=${APNS_KEY_ID}
+      - APNS_TEAM_ID=${APNS_TEAM_ID}
+      - APNS_AUTH_KEY_PATH=${APNS_AUTH_KEY_PATH}
+    volumes:
+      - ./certs:/certs:ro
+    restart: unless-stopped
+    networks:
+      - push
+
+networks:
+  push:
+    driver: bridge

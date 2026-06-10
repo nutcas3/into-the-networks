@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoIP Push Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f23;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 28px; margin-bottom: 8px; color: #00d4aa; }
+        .subtitle { color: #888; margin-bottom: 30px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card {
+            background: #1a1a2e;
+            border: 1px solid #2a2a3e;
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .card h2 { font-size: 14px; text-transform: uppercase; color: #888; margin-bottom: 12px; letter-spacing: 0.5px; }
+        .stat-value { font-size: 36px; font-weight: 700; color: #00d4aa; }
+        .stat-label { font-size: 13px; color: #666; margin-top: 4px; }
+        .platform-bar { display: flex; gap: 8px; margin-top: 12px; }
+        .platform-segment {
+            height: 8px;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .ios { background: #007aff; }
+        .android { background: #3ddc84; }
+        .section { margin-bottom: 30px; }
+        .section h2 { font-size: 18px; margin-bottom: 16px; color: #e0e0e0; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1a1a2e;
+            border: 1px solid #2a2a3e;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 13px;
+        }
+        th { background: #16162a; color: #888; font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+        td { border-top: 1px solid #2a2a3e; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-ios { background: rgba(0,122,255,0.2); color: #007aff; }
+        .badge-android { background: rgba(61,220,132,0.2); color: #3ddc84; }
+        .badge-enabled { background: rgba(0,212,170,0.2); color: #00d4aa; }
+        .badge-disabled { background: rgba(255,59,48,0.2); color: #ff3b30; }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            display: inline-block; margin-right: 6px;
+        }
+        .status-ok { background: #00d4aa; }
+        .status-err { background: #ff3b30; }
+        .actions { display: flex; gap: 8px; margin-bottom: 16px; }
+        button {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.85; }
+        button.secondary { background: #2a2a3e; }
+        button.danger { background: #ff3b30; }
+        .log { background: #0a0a1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; color: #00d4aa; }
+        .log .time { color: #666; }
+        .log .error { color: #ff3b30; }
+        .modal-overlay {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: #1a1a2e;
+            border: 1px solid #2a2a3e;
+            border-radius: 12px;
+            padding: 24px;
+            width: 400px;
+            max-width: 90%;
+        }
+        .modal h3 { margin-bottom: 16px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; text-transform: uppercase; }
+        .form-group input, .form-group select {
+            width: 100%;
+            background: #0a0a1a;
+            border: 1px solid #2a2a3e;
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>VoIP Push Dashboard</h1>
+        <p class="subtitle">Mobile push notification management for VoIP calls</p>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Total Devices</h2>
+                <div class="stat-value" id="total-devices">0</div>
+                <div class="stat-label">Registered mobile devices</div>
+            </div>
+            <div class="card">
+                <h2>iOS Devices</h2>
+                <div class="stat-value" id="ios-count">0</div>
+                <div class="stat-label">Apple Push Notifications</div>
+            </div>
+            <div class="card">
+                <h2>Android Devices</h2>
+                <div class="stat-value" id="android-count">0</div>
+                <div class="stat-label">Firebase Cloud Messaging</div>
+            </div>
+            <div class="card">
+                <h2>Service Status</h2>
+                <div class="stat-value" style="font-size: 18px; display: flex; align-items: center;">
+                    <span class="status-dot status-ok"></span>
+                    <span>Healthy</span>
+                </div>
+                <div class="stat-label" id="last-update">Updated just now</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="actions">
+                <button onclick="showRegisterModal()">+ Register Device</button>
+                <button class="secondary" onclick="showPushModal()">Send Test Push</button>
+                <button class="secondary" onclick="refreshStats()">Refresh</button>
+            </div>
+            <h2>Registered Devices</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Platform</th>
+                        <th>Device Model</th>
+                        <th>App Version</th>
+                        <th>Status</th>
+                        <th>Last Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="devices-table">
+                    <tr><td colspan="7" style="text-align:center;color:#666">No devices registered</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Activity Log</h2>
+            <div class="log" id="log">
+                <div><span class="time">[00:00:00]</span> Dashboard loaded</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Device Modal -->
+    <div class="modal-overlay" id="register-modal">
+        <div class="modal">
+            <h3>Register Device</h3>
+            <div class="form-group">
+                <label>User ID</label>
+                <input type="text" id="reg-user-id" placeholder="e.g. alice">
+            </div>
+            <div class="form-group">
+                <label>Platform</label>
+                <select id="reg-platform">
+                    <option value="ios">iOS</option>
+                    <option value="android">Android</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Push Token</label>
+                <input type="text" id="reg-token" placeholder="Device push token">
+            </div>
+            <div class="form-group">
+                <label>VoIP Token (iOS only)</label>
+                <input type="text" id="reg-voip-token" placeholder="APNS VoIP token">
+            </div>
+            <div class="form-group">
+                <label>Device Model</label>
+                <input type="text" id="reg-model" placeholder="e.g. iPhone14,2">
+            </div>
+            <div class="modal-actions">
+                <button class="secondary" onclick="hideModal('register-modal')">Cancel</button>
+                <button onclick="registerDevice()">Register</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Send Push Modal -->
+    <div class="modal-overlay" id="push-modal">
+        <div class="modal">
+            <h3>Send Test Push</h3>
+            <div class="form-group">
+                <label>User ID</label>
+                <input type="text" id="push-user-id" placeholder="Target user ID">
+            </div>
+            <div class="form-group">
+                <label>Caller ID</label>
+                <input type="text" id="push-caller-id" value="test-caller">
+            </div>
+            <div class="form-group">
+                <label>Caller Name</label>
+                <input type="text" id="push-caller-name" value="Test Caller">
+            </div>
+            <div class="form-group">
+                <label>Session ID</label>
+                <input type="text" id="push-session-id" placeholder="Auto-generated if empty">
+            </div>
+            <div class="modal-actions">
+                <button class="secondary" onclick="hideModal('push-modal')">Cancel</button>
+                <button onclick="sendPush()">Send Push</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function log(message, isError = false) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.innerHTML = `<span class="time">[${time}]</span> ${message}`;
+            if (isError) div.className = 'error';
+            logDiv.appendChild(div);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function refreshStats() {
+            try {
+                const resp = await fetch(`${API_BASE}/stats`);
+                const data = await resp.json();
+
+                document.getElementById('total-devices').textContent = data.total_devices || 0;
+                const counts = data.devices_by_platform || {};
+                document.getElementById('ios-count').textContent = counts['ios'] || 0;
+                document.getElementById('android-count').textContent = counts['android'] || 0;
+                document.getElementById('last-update').textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+                log('Stats refreshed');
+            } catch (err) {
+                log('Failed to refresh stats: ' + err.message, true);
+            }
+        }
+
+        function showRegisterModal() {
+            document.getElementById('register-modal').classList.add('active');
+        }
+
+        function showPushModal() {
+            document.getElementById('push-modal').classList.add('active');
+        }
+
+        function hideModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        async function registerDevice() {
+            const body = {
+                user_id: document.getElementById('reg-user-id').value,
+                platform: document.getElementById('reg-platform').value,
+                push_token: document.getElementById('reg-token').value,
+                voip_token: document.getElementById('reg-voip-token').value || undefined,
+                device_model: document.getElementById('reg-model').value
+            };
+
+            try {
+                const resp = await fetch(`${API_BASE}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    log(`Device registered for ${body.user_id}`);
+                    hideModal('register-modal');
+                    refreshStats();
+                } else {
+                    log(`Registration failed: ${data.error}`, true);
+                }
+            } catch (err) {
+                log('Registration error: ' + err.message, true);
+            }
+        }
+
+        async function sendPush() {
+            const body = {
+                user_id: document.getElementById('push-user-id').value,
+                caller_id: document.getElementById('push-caller-id').value,
+                caller_name: document.getElementById('push-caller-name').value,
+                session_id: document.getElementById('push-session-id').value || 'test-' + Date.now()
+            };
+
+            try {
+                const resp = await fetch(`${API_BASE}/push`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+
+                if (data.success) {
+                    log(`Push sent to ${body.user_id}: ${data.message}`);
+                    hideModal('push-modal');
+                } else {
+                    log(`Push failed: ${data.error}`, true);
+                }
+            } catch (err) {
+                log('Push error: ' + err.message, true);
+            }
+        }
+
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(el => {
+            el.addEventListener('click', (e) => {
+                if (e.target === el) el.classList.remove('active');
+            });
+        });
+
+        // Initial load
+        refreshStats();
+        setInterval(refreshStats, 30000); // Auto-refresh every 30s
+    </script>
+</body>
+</html>
