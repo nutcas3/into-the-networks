@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: kamailio-postgres
+    environment:
+      POSTGRES_DB: kamailio
+      POSTGRES_USER: kamailio
+      POSTGRES_PASSWORD: kamailio
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kamailio -d kamailio"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kamailio:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: kamailio-router
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5061:5061/tcp"
+    environment:
+      - KAMAILIO_LISTEN_PORT=5060
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=kamailio
+      - DB_USER=kamailio
+      - DB_PASSWORD=kamailio
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./cfg:/etc/kamailio
+    restart: unless-stopped
+    networks:
+      - telephony
+
+  rpc-server:
+    build:
+      context: ./rpc
+      dockerfile: Dockerfile
+    container_name: kamailio-rpc
+    ports:
+      - "8081:8080"
+    environment:
+      - KAMAILIO_HOST=kamailio
+      - KAMAILIO_PORT=5060
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=kamailio
+      - DB_USER=kamailio
+      - DB_PASSWORD=kamailio
+    depends_on:
+      - kamailio
+      - postgres
+    restart: unless-stopped
+    networks:
+      - telephony
+
+networks:
+  telephony:
+    driver: bridge
+
+volumes:
+  postgres_data:

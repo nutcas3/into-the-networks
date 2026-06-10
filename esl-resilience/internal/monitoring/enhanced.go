@@ -66,7 +66,7 @@ func NewEnhancedMonitor(database *db.Database) *EnhancedMonitor {
 	em.initTenantMetrics()
 	em.initSLAMetrics()
 
-	em.alertManager = NewAlertManager()
+	em.alertManager = NewAlertManager(em)
 	em.initDefaultAlertRules()
 
 	em.healthChecker = NewHealthChecker()

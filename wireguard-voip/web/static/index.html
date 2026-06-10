@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WireGuard VoIP Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 28px; margin-bottom: 8px; background: linear-gradient(90deg, #00d4aa, #007aff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .subtitle { color: #888; margin-bottom: 30px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 30px; }
+        .card {
+            background: #12121f;
+            border: 1px solid #1e1e2e;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card h2 { font-size: 12px; text-transform: uppercase; color: #666; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .stat-value { font-size: 32px; font-weight: 700; }
+        .stat-value.online { color: #00d4aa; }
+        .stat-value.offline { color: #ff3b30; }
+        .stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+        .section { margin-bottom: 30px; }
+        .section h2 { font-size: 18px; margin-bottom: 16px; color: #e0e0e0; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #12121f;
+            border: 1px solid #1e1e2e;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th, td { padding: 12px 16px; text-align: left; font-size: 13px; }
+        th { background: #0d0d18; color: #666; font-weight: 500; text-transform: uppercase; font-size: 11px; }
+        td { border-top: 1px solid #1e1e2e; }
+        .status { display: inline-flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .status-dot.online { background: #00d4aa; }
+        .status-dot.offline { background: #ff3b30; }
+        .actions { display: flex; gap: 8px; margin-bottom: 16px; }
+        button {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover { opacity: 0.85; }
+        button.secondary { background: #1e1e2e; }
+        button.danger { background: #ff3b30; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: #12121f; border: 1px solid #1e1e2e; border-radius: 12px; padding: 24px; width: 400px; }
+        .modal h3 { margin-bottom: 16px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; }
+        .form-group input { width: 100%; background: #0a0a0f; border: 1px solid #1e1e2e; border-radius: 6px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+        .traffic-bar { height: 6px; background: #1e1e2e; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .traffic-fill { height: 100%; background: linear-gradient(90deg, #007aff, #00d4aa); border-radius: 3px; transition: width 0.5s ease; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WireGuard VoIP</h1>
+        <p class="subtitle">Zero-rated secure VoIP tunneling</p>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Tunnel Status</h2>
+                <div class="stat-value online" id="tunnel-status">Online</div>
+                <div class="stat-label">WireGuard interface</div>
+            </div>
+            <div class="card">
+                <h2>Active Peers</h2>
+                <div class="stat-value online" id="peer-count">0</div>
+                <div class="stat-label">Connected clients</div>
+            </div>
+            <div class="card">
+                <h2>Total Traffic</h2>
+                <div class="stat-value" id="total-traffic">0 MB</div>
+                <div class="traffic-bar"><div class="traffic-fill" style="width: 0%"></div></div>
+                <div class="stat-label">Zero-rated data</div>
+            </div>
+            <div class="card">
+                <h2>Zero Rating</h2>
+                <div class="stat-value online" id="zero-status">Active</div>
+                <div class="stat-label">Carrier policy</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="actions">
+                <button onclick="showProvisionModal()">+ Provision Peer</button>
+                <button class="secondary" onclick="refreshAll()">Refresh</button>
+            </div>
+            <h2>Connected Peers</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>IP</th>
+                        <th>Status</th>
+                        <th>Traffic (RX / TX)</th>
+                        <th>Last Handshake</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="peers-table">
+                    <tr><td colspan="6" style="text-align:center;color:#666">No peers connected</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Zero-Rating Policies</h2>
+            <table>
+                <thead>
+                    <tr><th>Policy</th><th>Subnets</th><th>Ports</th><th>Status</th></tr>
+                </thead>
+                <tbody id="policies-table">
+                    <tr><td colspan="4" style="text-align:center;color:#666">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="provision-modal">
+        <div class="modal">
+            <h3>Provision New Peer</h3>
+            <div class="form-group"><label>User ID</label><input type="text" id="prov-user" placeholder="e.g. alice"></div>
+            <div class="form-group"><label>Device Info</label><input type="text" id="prov-device" placeholder="e.g. iPhone 14"></div>
+            <div class="modal-actions">
+                <button class="secondary" onclick="hideModal('provision-modal')">Cancel</button>
+                <button onclick="provisionPeer()">Provision</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin;
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatTime(ts) {
+            if (!ts) return 'Never';
+            const d = new Date(ts * 1000);
+            const diff = Math.floor((Date.now() - d) / 1000);
+            if (diff < 60) return diff + 's ago';
+            if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+            return Math.floor(diff / 3600) + 'h ago';
+        }
+
+        async function refreshAll() {
+            await Promise.all([refreshMetrics(), refreshPeers(), refreshConfig()]);
+        }
+
+        async function refreshMetrics() {
+            try {
+                const r = await fetch(`${API}/metrics`);
+                const d = await r.json();
+                document.getElementById('peer-count').textContent = d.connected_peers || 0;
+                const total = (d.total_rx || 0) + (d.total_tx || 0);
+                document.getElementById('total-traffic').textContent = formatBytes(total);
+                document.querySelector('.traffic-fill').style.width = Math.min(total / 1e9 * 100, 100) + '%';
+            } catch (e) {}
+        }
+
+        async function refreshPeers() {
+            try {
+                const r = await fetch(`${API}/peers`);
+                const d = await r.json();
+                const tbody = document.getElementById('peers-table');
+                if (!d.peers || d.peers.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666">No peers connected</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = d.peers.map(p => `
+                    <tr>
+                        <td>${p.user_id}</td>
+                        <td><code>${p.ip}</code></td>
+                        <td>
+                            <span class="status">
+                                <span class="status-dot ${p.connected ? 'online' : 'offline'}"></span>
+                                ${p.connected ? 'Online' : 'Offline'}
+                            </span>
+                        </td>
+                        <td>${formatBytes(p.rx_bytes || 0)} / ${formatBytes(p.tx_bytes || 0)}</td>
+                        <td>${formatTime(p.last_handshake ? p.last_handshake / 1000 : null)}</td>
+                        <td><button class="danger" style="padding:4px 10px;font-size:11px" onclick="revokePeer('${p.public_key}')">Revoke</button></td>
+                    </tr>
+                `).join('');
+            } catch (e) {}
+        }
+
+        async function refreshConfig() {
+            try {
+                const r = await fetch(`${API}/config`);
+                const d = await r.json();
+                document.getElementById('zero-status').textContent = d.zero_rated ? 'Active' : 'Inactive';
+                document.getElementById('zero-status').className = 'stat-value ' + (d.zero_rated ? 'online' : 'offline');
+
+                const ptbody = document.getElementById('policies-table');
+                if (d.policies) {
+                    ptbody.innerHTML = d.policies.map(p => `
+                        <tr>
+                            <td>${p.name}</td>
+                            <td>${p.subnets?.join(', ') || '0.0.0.0/0'}</td>
+                            <td>${p.ports?.join(', ') || 'All'}</td>
+                            <td><span class="status"><span class="status-dot ${p.enabled ? 'online' : 'offline'}"></span>${p.enabled ? 'Enabled' : 'Disabled'}</span></td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {}
+        }
+
+        async function provisionPeer() {
+            const body = { user_id: document.getElementById('prov-user').value, device_info: document.getElementById('prov-device').value };
+            try {
+                const r = await fetch(`${API}/provision`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const d = await r.json();
+                if (d.success) {
+                    alert(`Peer provisioned!\nClient IP: ${d.client_ip}\nServer Port: ${d.server_port}`);
+                    hideModal('provision-modal');
+                    refreshAll();
+                } else {
+                    alert('Error: ' + d.error);
+                }
+            } catch (e) { alert('Error: ' + e.message); }
+        }
+
+        async function revokePeer(pubKey) {
+            if (!confirm('Revoke this peer?')) return;
+            try {
+                await fetch(`${API}/revoke`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ public_key: pubKey }) });
+                refreshAll();
+            } catch (e) {}
+        }
+
+        function showProvisionModal() { document.getElementById('provision-modal').classList.add('active'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        document.querySelectorAll('.modal-overlay').forEach(el => {
+            el.addEventListener('click', e => { if (e.target === el) el.classList.remove('active'); });
+        });
+
+        refreshAll();
+        setInterval(refreshAll, 15000);
+    </script>
+</body>
+</html>

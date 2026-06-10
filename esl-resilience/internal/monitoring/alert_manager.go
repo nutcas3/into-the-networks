@@ -6,18 +6,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+	prommodel "github.com/prometheus/client_model/go"
 	"github.com/sirupsen/logrus"
 )
 
-func NewAlertManager() *AlertManager {
+func NewAlertManager(monitor *EnhancedMonitor) *AlertManager {
 	logger := logrus.New()
 	logger.SetLevel(logrus.InfoLevel)
 
 	return &AlertManager{
-		rules:    make(map[string]*AlertRule),
-		alerts:   make(map[string]*Alert),
-		handlers: []AlertHandler{},
-		logger:   logger,
+		rules:              make(map[string]*AlertRule),
+		alerts:             make(map[string]*Alert),
+		handlers:           []AlertHandler{},
+		conditionStartTime: make(map[string]time.Time),
+		monitor:            monitor,
+		logger:             logger,
 	}
 }
 
@@ -73,9 +77,192 @@ func (am *AlertManager) EvaluateAlerts(ctx context.Context) {
 }
 
 func (am *AlertManager) shouldTriggerAlert(rule *AlertRule) bool {
-	// Simplified alert evaluation
-	// In production, this would be more sophisticated
-	return true // Placeholder
+	// Get current metric value based on condition
+	currentValue, err := am.getMetricValue(rule.Condition)
+	if err != nil {
+		am.logger.WithError(err).WithField("condition", rule.Condition).Error("Failed to get metric value")
+		return false
+	}
+
+	// Evaluate condition against threshold
+	// Parse condition like "error_rate > 0.05" or "cpu_usage > 80"
+	threshold := rule.Threshold
+
+	// Simple comparison - in production, use a proper expression parser
+	triggered := false
+	switch {
+	case currentValue > threshold:
+		triggered = true
+	case currentValue < threshold:
+		triggered = false
+	default:
+		triggered = false
+	}
+
+	// Check duration requirement if triggered
+	if triggered && rule.Duration > 0 {
+		triggered = am.checkDurationThreshold(rule, currentValue)
+	}
+
+	return triggered
+}
+
+func (am *AlertManager) getMetricValue(condition string) (float64, error) {
+	// Parse condition to extract metric name
+	// Expected format: "metric_name" or "metric_name > threshold"
+	metricName := am.parseMetricName(condition)
+
+	// Fetch actual metric value from the monitor
+	if am.monitor == nil {
+		return 0, fmt.Errorf("monitor not initialized")
+	}
+
+	am.mu.RLock()
+	defer am.mu.RUnlock()
+
+	// Fetch actual values from Prometheus metrics
+	switch metricName {
+	case "error_rate":
+		return am.calculateErrorRate()
+	case "cpu_usage":
+		return am.getGaugeValue(am.monitor.performanceMetrics.cpuUsage)
+	case "memory_usage":
+		return am.getGaugeValue(am.monitor.performanceMetrics.memoryUsage)
+	case "connection_failures":
+		return am.getCounterValue(am.monitor.connectionFailures)
+	case "call_failure_rate":
+		return am.calculateCallFailureRate()
+	case "active_calls":
+		return am.getGaugeValue(am.monitor.callMetrics.activeCalls)
+	case "connection_status":
+		return am.getGaugeValue(am.monitor.connectionStatus)
+	case "circuit_breaker_state":
+		return am.getGaugeValue(am.monitor.circuitBreakerState)
+	case "call_success_rate":
+		return am.getGaugeValue(am.monitor.slaMetrics.callSuccessRate)
+	case "availability":
+		return am.getGaugeValue(am.monitor.slaMetrics.availability)
+	default:
+		return 0, fmt.Errorf("unknown metric: %s", metricName)
+	}
+}
+
+func (am *AlertManager) calculateErrorRate() (float64, error) {
+	am.monitor.internalMetrics.mu.RLock()
+	defer am.monitor.internalMetrics.mu.RUnlock()
+
+	total := am.monitor.internalMetrics.totalCalls
+	if total == 0 {
+		return 0, nil
+	}
+
+	return float64(am.monitor.internalMetrics.failedCalls) / float64(total), nil
+}
+
+func (am *AlertManager) calculateCallFailureRate() (float64, error) {
+	am.monitor.internalMetrics.mu.RLock()
+	defer am.monitor.internalMetrics.mu.RUnlock()
+
+	total := am.monitor.internalMetrics.totalCalls
+	if total == 0 {
+		return 0, nil
+	}
+
+	return float64(am.monitor.internalMetrics.failedCalls) / float64(total), nil
+}
+
+func (am *AlertManager) getGaugeValue(gauge prometheus.Gauge) (float64, error) {
+	// Use the Write method to get the current metric value
+	metric := &prommodel.Metric{}
+	if err := gauge.Write(metric); err != nil {
+		return 0, fmt.Errorf("failed to read gauge value: %w", err)
+	}
+
+	if metric.Gauge == nil {
+		return 0, fmt.Errorf("gauge metric is nil")
+	}
+
+	return metric.Gauge.GetValue(), nil
+}
+
+func (am *AlertManager) getCounterValue(counter prometheus.Counter) (float64, error) {
+	// Use the Write method to get the current metric value
+	metric := &prommodel.Metric{}
+	if err := counter.Write(metric); err != nil {
+		return 0, fmt.Errorf("failed to read counter value: %w", err)
+	}
+
+	if metric.Counter == nil {
+		return 0, fmt.Errorf("counter metric is nil")
+	}
+
+	return metric.Counter.GetValue(), nil
+}
+
+func (am *AlertManager) parseMetricName(condition string) string {
+	// Simple parser to extract metric name from condition
+	// Handles formats like "error_rate > 0.05" or just "error_rate"
+
+	// Remove operators and values to get just the metric name
+	operators := []string{">", "<", ">=", "<=", "==", "!="}
+
+	for _, op := range operators {
+		if idx := indexOf(condition, op); idx != -1 {
+			return trimSpace(condition[:idx])
+		}
+	}
+
+	return trimSpace(condition)
+}
+
+func indexOf(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}
+
+func trimSpace(s string) string {
+	start := 0
+	for start < len(s) && s[start] == ' ' {
+		start++
+	}
+	end := len(s)
+	for end > start && s[end-1] == ' ' {
+		end--
+	}
+	return s[start:end]
+}
+
+func (am *AlertManager) checkDurationThreshold(rule *AlertRule, currentValue float64) bool {
+	// Check if the condition has been true for the specified duration
+	conditionKey := fmt.Sprintf("%s:%.2f", rule.Name, rule.Threshold)
+
+	am.mu.Lock()
+	defer am.mu.Unlock()
+
+	startTime, exists := am.conditionStartTime[conditionKey]
+
+	if !exists {
+		// First time this condition is true, record the start time
+		am.conditionStartTime[conditionKey] = time.Now()
+		return false // Don't trigger immediately, wait for duration
+	}
+
+	// Check if the condition has been true for the required duration
+	elapsed := time.Since(startTime)
+	if elapsed >= rule.Duration {
+		// Condition has been true for long enough, trigger alert
+		// Reset the start time to avoid continuous triggering
+		delete(am.conditionStartTime, conditionKey)
+		return true
+	}
+
+	// Condition hasn't been true long enough yet
+	_ = currentValue // Use the value to avoid unused parameter warning
+	return false
 }
 
 func (am *AlertManager) triggerAlert(rule *AlertRule) {

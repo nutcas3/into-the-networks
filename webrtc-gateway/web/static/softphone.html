@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Softphone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .phone {
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header .status {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .screen {
+            padding: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .dialpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .dialpad button {
+            padding: 20px;
+            font-size: 24px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .dialpad button:hover {
+            background: #e0e0e0;
+        }
+
+        .call-status {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .call-status.active {
+            display: block;
+        }
+
+        .call-status .timer {
+            font-size: 32px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .call-status .state {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone">
+        <div class="header">
+            <h1>WebRTC Softphone</h1>
+            <div class="status" id="status">Disconnected</div>
+        </div>
+        <div class="screen">
+            <!-- Registration Section -->
+            <div id="registration">
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="username" placeholder="Enter username">
+                </div>
+                <button class="btn btn-primary" onclick="register()">Register</button>
+            </div>
+
+            <!-- Call Section -->
+            <div id="call-section" class="hidden">
+                <div class="input-group">
+                    <label>Call To</label>
+                    <input type="text" id="callee" placeholder="Enter callee username">
+                </div>
+                <button class="btn btn-primary" id="call-btn" onclick="makeCall()">Call</button>
+                <button class="btn btn-danger hidden" id="hangup-btn" onclick="hangup()">Hangup</button>
+                <button class="btn btn-success hidden" id="answer-btn" onclick="answer()">Answer</button>
+                <button class="btn btn-danger hidden" id="reject-btn" onclick="reject()">Reject</button>
+
+                <div class="dialpad">
+                    <button onclick="dial('1')">1</button>
+                    <button onclick="dial('2')">2</button>
+                    <button onclick="dial('3')">3</button>
+                    <button onclick="dial('4')">4</button>
+                    <button onclick="dial('5')">5</button>
+                    <button onclick="dial('6')">6</button>
+                    <button onclick="dial('7')">7</button>
+                    <button onclick="dial('8')">8</button>
+                    <button onclick="dial('9')">9</button>
+                    <button onclick="dial('*')">*</button>
+                    <button onclick="dial('0')">0</button>
+                    <button onclick="dial('#')">#</button>
+                </div>
+
+                <div class="call-status" id="call-status">
+                    <div class="timer" id="timer">00:00</div>
+                    <div class="state" id="call-state">Calling...</div>
+                </div>
+            </div>
+
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let localStream = null;
+        let peerConnection = null;
+        let currentSession = null;
+        let callTimer = null;
+        let callSeconds = 0;
+        let username = '';
+
+        const WS_URL = 'ws://localhost:8083/ws';
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${time}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+        }
+
+        function register() {
+            username = document.getElementById('username').value.trim();
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
+
+            connectWebSocket();
+        }
+
+        function connectWebSocket() {
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                log('WebSocket connected');
+                updateStatus('Connected');
+                
+                // Send registration
+                ws.send(JSON.stringify({
+                    type: 'register',
+                    from: username,
+                    timestamp: new Date().toISOString()
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                handleSignalingMessage(message);
+            };
+
+            ws.onclose = () => {
+                log('WebSocket disconnected');
+                updateStatus('Disconnected');
+                document.getElementById('registration').classList.remove('hidden');
+                document.getElementById('call-section').classList.add('hidden');
+            };
+
+            ws.onerror = (error) => {
+                log('WebSocket error');
+                console.error(error);
+            };
+        }
+
+        function handleSignalingMessage(message) {
+            log(`Received: ${message.type}`);
+
+            switch (message.type) {
+                case 'register':
+                    log('Registered successfully');
+                    document.getElementById('registration').classList.add('hidden');
+                    document.getElementById('call-section').classList.remove('hidden');
+                    break;
+
+                case 'call':
+                    log(`Incoming call from ${message.from}`);
+                    currentSession = message.session_id;
+                    document.getElementById('call-btn').classList.add('hidden');
+                    document.getElementById('answer-btn').classList.remove('hidden');
+                    document.getElementById('reject-btn').classList.remove('hidden');
+                    break;
+
+                case 'offer':
+                    log('Received offer');
+                    handleOffer(message);
+                    break;
+
+                case 'answer':
+                    log('Received answer');
+                    handleAnswer(message);
+                    break;
+
+                case 'ice':
+                    log('Received ICE candidate');
+                    handleICE(message);
+                    break;
+
+                case 'hangup':
+                    log('Call ended');
+                    endCall();
+                    break;
+
+                case 'ping':
+                    ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
+                    break;
+            }
+        }
+
+        async function makeCall() {
+            const callee = document.getElementById('callee').value.trim();
+            if (!callee) {
+                alert('Please enter a callee');
+                return;
+            }
+
+            log(`Calling ${callee}...`);
+
+            // Get local media
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: false
+                });
+                log('Local media obtained');
+            } catch (error) {
+                log('Failed to get media: ' + error.message);
+                return;
+            }
+
+            // Create peer connection
+            peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' }
+                ]
+            });
+
+            // Add local stream
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            // ICE candidate handler
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({
+                        type: 'ice',
+                        from: username,
+                        to: callee,
+                        session_id: currentSession,
+                        ice: {
+                            candidate: event.candidate.candidate,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex,
+                            sdpMid: event.candidate.sdpMid
+                        },
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            };
+
+            peerConnection.onconnectionstatechange = () => {
+                log(`Connection state: ${peerConnection.connectionState}`);
+            };
+
+            // Create offer
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            // Send call request
+            currentSession = generateSessionID();
+            ws.send(JSON.stringify({
+                type: 'call',
+                from: username,
+                to: callee,
+                session_id: currentSession,
+                timestamp: new Date().toISOString()
+            }));
+
+            // Send offer
+            ws.send(JSON.stringify({
+                type: 'offer',
+                from: username,
+                to: callee,
+                session_id: currentSession,
+                sdp: offer.sdp,
+                timestamp: new Date().toISOString()
+            }));
+
+            document.getElementById('call-btn').classList.add('hidden');
+            document.getElementById('hangup-btn').classList.remove('hidden');
+            document.getElementById('call-status').classList.add('active');
+            document.getElementById('call-state').textContent = 'Calling...';
+        }
+
+        async function handleOffer(message) {
+            // Get local media
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: false
+                });
+                log('Local media obtained');
+            } catch (error) {
+                log('Failed to get media: ' + error.message);
+                return;
+            }
+
+            // Create peer connection
+            peerConnection = new RTCPeerConnection({
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' }
+                ]
+            });
+
+            // Add local stream
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            // ICE candidate handler
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({
+                        type: 'ice',
+                        from: username,
+                        to: message.from,
+                        session_id: message.session_id,
+                        ice: {
+                            candidate: event.candidate.candidate,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex,
+                            sdpMid: event.candidate.sdpMid
+                        },
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            };
+
+            peerConnection.onconnectionstatechange = () => {
+                log(`Connection state: ${peerConnection.connectionState}`);
+            };
+
+            // Set remote description
+            await peerConnection.setRemoteDescription(new RTCSessionDescription({
+                type: 'offer',
+                sdp: message.sdp
+            }));
+
+            // Create answer
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            // Send answer
+            ws.send(JSON.stringify({
+                type: 'answer',
+                from: username,
+                to: message.from,
+                session_id: message.session_id,
+                sdp: answer.sdp,
+                timestamp: new Date().toISOString()
+            }));
+        }
+
+        async function handleAnswer(message) {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription({
+                type: 'answer',
+                sdp: message.sdp
+            }));
+
+            document.getElementById('call-state').textContent = 'Connected';
+            startCallTimer();
+        }
+
+        async function handleICE(message) {
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate({
+                    candidate: message.ice.candidate,
+                    sdpMLineIndex: message.ice.sdpMLineIndex,
+                    sdpMid: message.ice.sdpMid
+                }));
+            }
+        }
+
+        function answer() {
+            // Handled in handleOffer
+            document.getElementById('answer-btn').classList.add('hidden');
+            document.getElementById('reject-btn').classList.add('hidden');
+            document.getElementById('hangup-btn').classList.remove('hidden');
+            document.getElementById('call-status').classList.add('active');
+            document.getElementById('call-state').textContent = 'Connecting...';
+        }
+
+        function reject() {
+            ws.send(JSON.stringify({
+                type: 'hangup',
+                from: username,
+                to: currentSession ? currentSession.callee : '',
+                session_id: currentSession,
+                timestamp: new Date().toISOString()
+            }));
+
+            document.getElementById('answer-btn').classList.add('hidden');
+            document.getElementById('reject-btn').classList.add('hidden');
+            document.getElementById('call-btn').classList.remove('hidden');
+        }
+
+        function hangup() {
+            ws.send(JSON.stringify({
+                type: 'hangup',
+                from: username,
+                to: currentSession ? currentSession.callee : '',
+                session_id: currentSession,
+                timestamp: new Date().toISOString()
+            }));
+
+            endCall();
+        }
+
+        function endCall() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+
+            if (callTimer) {
+                clearInterval(callTimer);
+                callTimer = null;
+            }
+
+            callSeconds = 0;
+            currentSession = null;
+
+            document.getElementById('call-btn').classList.remove('hidden');
+            document.getElementById('hangup-btn').classList.add('hidden');
+            document.getElementById('answer-btn').classList.add('hidden');
+            document.getElementById('reject-btn').classList.add('hidden');
+            document.getElementById('call-status').classList.remove('active');
+            document.getElementById('timer').textContent = '00:00';
+        }
+
+        function startCallTimer() {
+            callSeconds = 0;
+            callTimer = setInterval(() => {
+                callSeconds++;
+                const minutes = Math.floor(callSeconds / 60).toString().padStart(2, '0');
+                const seconds = (callSeconds % 60).toString().padStart(2, '0');
+                document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        function dial(digit) {
+            const input = document.getElementById('callee');
+            input.value += digit;
+        }
+
+        function generateSessionID() {
+            return 'session-' + Math.random().toString(36).substr(2, 9);
+        }
+    </script>
+</body>
+</html>

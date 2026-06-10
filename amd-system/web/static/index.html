@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMD System Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0f; color: #e0e0e0; min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 28px; margin-bottom: 8px; background: linear-gradient(90deg, #ff6b6b, #feca57); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .subtitle { color: #888; margin-bottom: 30px; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 30px; }
+        .card { background: #12121f; border: 1px solid #1e1e2e; border-radius: 12px; padding: 20px; }
+        .card h2 { font-size: 12px; text-transform: uppercase; color: #666; margin-bottom: 8px; letter-spacing: 0.5px; }
+        .stat-value { font-size: 32px; font-weight: 700; }
+        .human { color: #00d4aa; }
+        .am { color: #ff6b6b; }
+        .unknown { color: #feca57; }
+        .stat-label { font-size: 12px; color: #666; margin-top: 4px; }
+        .section { margin-bottom: 30px; }
+        .section h2 { font-size: 18px; margin-bottom: 16px; color: #e0e0e0; }
+        table { width: 100%; border-collapse: collapse; background: #12121f; border: 1px solid #1e1e2e; border-radius: 12px; overflow: hidden; }
+        th, td { padding: 12px 16px; text-align: left; font-size: 13px; }
+        th { background: #0d0d18; color: #666; font-weight: 500; text-transform: uppercase; font-size: 11px; }
+        td { border-top: 1px solid #1e1e2e; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+        .badge-human { background: rgba(0,212,170,0.2); color: #00d4aa; }
+        .badge-am { background: rgba(255,107,107,0.2); color: #ff6b6b; }
+        .badge-beep { background: rgba(254,202,87,0.2); color: #feca57; }
+        .badge-fax { background: rgba(116,185,255,0.2); color: #74b9ff; }
+        .badge-silence { background: rgba(178,190,195,0.2); color: #b2bec3; }
+        .badge-unknown { background: rgba(99,110,114,0.2); color: #636e72; }
+        .actions { display: flex; gap: 8px; margin-bottom: 16px; }
+        button { background: #ff6b6b; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        button:hover { opacity: 0.85; }
+        button.secondary { background: #1e1e2e; }
+        .classifier-status { display: inline-flex; align-items: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.ok { background: #00d4aa; }
+        .status-dot.err { background: #ff3b30; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: #12121f; border: 1px solid #1e1e2e; border-radius: 12px; padding: 24px; width: 400px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; }
+        .form-group input { width: 100%; background: #0a0a0f; border: 1px solid #1e1e2e; border-radius: 6px; padding: 10px 12px; color: #e0e0e0; font-size: 14px; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AMD System</h1>
+        <p class="subtitle">AI-Powered Answering Machine Detection</p>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Total Calls</h2>
+                <div class="stat-value" id="total-calls">0</div>
+                <div class="stat-label">Sessions analyzed</div>
+            </div>
+            <div class="card">
+                <h2>Humans Detected</h2>
+                <div class="stat-value human" id="human-count">0</div>
+                <div class="stat-label">Connected to agents</div>
+            </div>
+            <div class="card">
+                <h2>Answering Machines</h2>
+                <div class="stat-value am" id="am-count">0</div>
+                <div class="stat-label">Voicemail drops</div>
+            </div>
+            <div class="card">
+                <h2>ML Classifier</h2>
+                <div class="stat-value" style="font-size: 18px; display: flex; align-items: center;">
+                    <span class="classifier-status"><span class="status-dot ok" id="ml-dot"></span><span id="ml-status">Online</span></span>
+                </div>
+                <div class="stat-label" id="ml-model">Loading...</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="actions">
+                <button onclick="showStartModal()">+ Start Call</button>
+                <button class="secondary" onclick="refreshAll()">Refresh</button>
+            </div>
+            <h2>Recent Classifications</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Session</th>
+                        <th>Phone</th>
+                        <th>Result</th>
+                        <th>Confidence</th>
+                        <th>Routed To</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody id="sessions-table">
+                    <tr><td colspan="6" style="text-align:center;color:#666">No calls yet</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="start-modal">
+        <div class="modal">
+            <h3>Start New Call</h3>
+            <div class="form-group"><label>Phone Number</label><input type="text" id="call-phone" placeholder="+1-555-0123"></div>
+            <div class="form-group"><label>Campaign ID</label><input type="text" id="call-campaign" placeholder="campaign-001"></div>
+            <div class="modal-actions">
+                <button class="secondary" onclick="hideModal('start-modal')">Cancel</button>
+                <button onclick="startCall()">Start</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin;
+
+        function badgeClass(result) {
+            const map = {
+                'human': 'badge-human',
+                'answering_machine': 'badge-am',
+                'beep': 'badge-beep',
+                'fax': 'badge-fax',
+                'silence': 'badge-silence',
+                'unknown': 'badge-unknown'
+            };
+            return map[result] || 'badge-unknown';
+        }
+
+        function formatResult(result) {
+            const map = {
+                'human': 'Human',
+                'answering_machine': 'Answering Machine',
+                'beep': 'Beep',
+                'fax': 'Fax',
+                'silence': 'Silence',
+                'unknown': 'Unknown'
+            };
+            return map[result] || result;
+        }
+
+        async function refreshAll() {
+            await Promise.all([refreshStats(), refreshSessions(), refreshClassifierHealth()]);
+        }
+
+        async function refreshStats() {
+            try {
+                const r = await fetch(`${API}/stats`);
+                const d = await r.json();
+                const calls = d.calls || {};
+                const results = calls.results || {};
+                document.getElementById('total-calls').textContent = calls.total_sessions || 0;
+                document.getElementById('human-count').textContent = results['human'] || 0;
+                document.getElementById('am-count').textContent = (results['answering_machine'] || 0) + (results['beep'] || 0);
+            } catch (e) {}
+        }
+
+        async function refreshSessions() {
+            try {
+                const r = await fetch(`${API}/stats`);
+                const d = await r.json();
+                const calls = d.calls || {};
+                const tbody = document.getElementById('sessions-table');
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#666">No calls yet</td></tr>';
+            } catch (e) {}
+        }
+
+        async function refreshClassifierHealth() {
+            try {
+                const r = await fetch(`${API}/classifier/health`);
+                const d = await r.json();
+                const dot = document.getElementById('ml-dot');
+                const status = document.getElementById('ml-status');
+                const model = document.getElementById('ml-model');
+                if (d.available) {
+                    dot.className = 'status-dot ok';
+                    status.textContent = 'Online';
+                    model.textContent = d.model || 'Ready';
+                } else {
+                    dot.className = 'status-dot err';
+                    status.textContent = 'Offline';
+                    model.textContent = d.error || 'Unavailable';
+                }
+            } catch (e) {
+                document.getElementById('ml-dot').className = 'status-dot err';
+                document.getElementById('ml-status').textContent = 'Offline';
+                document.getElementById('ml-model').textContent = 'Connection failed';
+            }
+        }
+
+        async function startCall() {
+            const body = {
+                phone_number: document.getElementById('call-phone').value,
+                campaign_id: document.getElementById('call-campaign').value
+            };
+            try {
+                const r = await fetch(`${API}/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const d = await r.json();
+                if (d.success) {
+                    alert(`Call started! Session: ${d.session_id}`);
+                    hideModal('start-modal');
+                    refreshAll();
+                } else {
+                    alert('Error: ' + d.error);
+                }
+            } catch (e) { alert('Error: ' + e.message); }
+        }
+
+        function showStartModal() { document.getElementById('start-modal').classList.add('active'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        document.querySelectorAll('.modal-overlay').forEach(el => {
+            el.addEventListener('click', e => { if (e.target === el) el.classList.remove('active'); });
+        });
+
+        refreshAll();
+        setInterval(refreshAll, 10000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  rtpengine:
+    image: rtpengine/rtpengine:mr11.5
+    container_name: webrtc-rtpengine
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - TABLE=0
+      - NO_FALLBACK=yes
+      - LISTEN_NG=2223
+      - LISTEN_CLI=9900
+      - TIMEOUT=60
+      - SILENT_TIMEOUT=3600
+      - PORT_MIN=10000
+      - PORT_MAX=20000
+      - LOG_LEVEL=6
+    ports:
+      - "2223:2223/udp"
+      - "10000-20000:10000-20000/udp"
+    volumes:
+      - /proc:/proc
+    restart: unless-stopped
+    networks:
+      - webrtc
+
+  webrtc-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: webrtc-gateway
+    ports:
+      - "8083:8083"
+    environment:
+      - RTPENGINE_ADDRESS=rtpengine:2223
+      - SIP_SERVER=kamailio
+      - SIP_PORT=5060
+      - PORT=8083
+      - LOG_LEVEL=info
+    depends_on:
+      - rtpengine
+    restart: unless-stopped
+    networks:
+      - webrtc
+
+networks:
+  webrtc:
+    driver: bridge
+
+volumes:
+  recordings:
