@@ -1,0 +1,48 @@
+services:
+  rtpengine:
+    image: rtpengine/rtpengine:mr11.5
+    container_name: rtpengine-server
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - TABLE=0
+      - NO_FALLBACK=yes
+      - LISTEN_NG=2223
+      - LISTEN_CLI=9900
+      - TIMEOUT=60
+      - SILENT_TIMEOUT=3600
+      - PORT_MIN=10000
+      - PORT_MAX=20000
+      - LOG_LEVEL=6
+    ports:
+      - "2223:2223/udp"
+      - "10000-20000:10000-20000/udp"
+    volumes:
+      - /proc:/proc
+    restart: unless-stopped
+    networks:
+      - media
+
+  media-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: rtpengine-media
+    ports:
+      - "8082:8082"
+    environment:
+      - RTPEngine_ADDRESS=rtpengine:2223
+      - PORT=8082
+      - LOG_LEVEL=info
+    depends_on:
+      - rtpengine
+    restart: unless-stopped
+    networks:
+      - media
+
+networks:
+  media:
+    driver: bridge
+
+volumes:
+  recordings:
